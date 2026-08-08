@@ -126,19 +126,44 @@ export const WhatsAppConfigDrawer: React.FC<WhatsAppConfigDrawerProps> = ({ isOp
             )}
           </div>
 
-          {/* QR Code (Se desconectado) */}
-          {!status.connected && qrCode && (
-            <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 text-center mb-6 space-y-3">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-400 text-xs font-bold border border-indigo-500/20">
-                <QrCode className="w-3.5 h-3.5" />
-                <span>ESCANEIE COM O WHATSAPP</span>
-              </div>
-              <div className="flex justify-center p-3 bg-white rounded-xl max-w-[200px] mx-auto shadow-md">
-                <img src={qrCode} alt="QR Code WhatsApp" className="w-full h-auto" />
-              </div>
-              <p className="text-[11px] text-slate-400">
-                Abra o WhatsApp &gt; Aparelhos Conectados &gt; Conectar um Aparelho
-              </p>
+          {/* QR Code & Pareamento (Se desconectado) */}
+          {!status.connected && (
+            <div className="mb-6 space-y-3">
+              {qrCode ? (
+                <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 text-center space-y-3">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-bold border border-emerald-500/20">
+                    <QrCode className="w-3.5 h-3.5" />
+                    <span>ESCANEIE COM O WHATSAPP</span>
+                  </div>
+                  <div className="flex justify-center p-3 bg-white rounded-xl max-w-[200px] mx-auto shadow-md">
+                    <img src={qrCode} alt="QR Code WhatsApp" className="w-full h-auto" />
+                  </div>
+                  <p className="text-[11px] text-slate-400">
+                    Abra o WhatsApp &gt; Aparelhos Conectados &gt; Conectar um Aparelho
+                  </p>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setLoadingStatus(true);
+                    evolutionService.saveConfig(config);
+                    const qr = await evolutionService.getQRCode();
+                    setQrCode(qr);
+                    setLoadingStatus(false);
+                    if (!qr) {
+                      addToast('Não foi possível conectar com a Evolution API. Verifique se a URL e a API Key estão corretas.', 'error');
+                    } else {
+                      addToast('QR Code gerado com sucesso! Escaneie com seu WhatsApp.', 'success');
+                    }
+                  }}
+                  disabled={loadingStatus}
+                  className="w-full py-2.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 text-xs font-bold border border-indigo-500/30 flex items-center justify-center gap-2 transition-all cursor-pointer"
+                >
+                  <QrCode className="w-4 h-4 text-indigo-400" />
+                  <span>Gerar QR Code para Pareamento</span>
+                </button>
+              )}
             </div>
           )}
 

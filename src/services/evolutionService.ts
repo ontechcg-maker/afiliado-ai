@@ -47,17 +47,61 @@ export class EvolutionService {
   }
 
   private cleanConfig() {
+    let url = (this.config.baseUrl || '').trim().replace(/\/$/, '');
+    url = url.replace(/\/manager\/?$/i, '');
     return {
-      baseUrl: (this.config.baseUrl || '').trim().replace(/\/$/, ''),
+      baseUrl: url,
       apiKey: (this.config.apiKey || '').trim(),
       instanceName: (this.config.instanceName || '').trim() || 'afiliado-ai',
       targetPhone: (this.config.targetPhone || '').trim(),
     };
   }
 
+  private formatQrCode(raw: string): string {
+    if (!raw) return '';
+    if (raw.startsWith('data:image')) return raw;
+    if (raw.startsWith('iVBORw0')) return `data:image/png;base64,${raw}`;
+    return raw;
+  }
+
   public isConfigured(): boolean {
     const { baseUrl, apiKey } = this.cleanConfig();
     return Boolean(baseUrl && apiKey);
+  }
+
+  /**
+   * Cria a instância na Evolution API caso não exista
+   */
+  async createInstance(): Promise<string> {
+    const { baseUrl, apiKey, instanceName } = this.cleanConfig();
+    if (!baseUrl || !apiKey) return '';
+
+    try {
+      const res = await fetch(`${baseUrl}/instance/create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: apiKey,
+        },
+        body: JSON.stringify({
+          instanceName: instanceName,
+          qrcode: true,
+          integration: 'WHATSAPP-BAILEYS',
+        }),
+      });
+
+      const data = await res.json();
+      const raw =
+        data?.qrcode?.base64 ||
+        data?.base64 ||
+        data?.code ||
+        data?.instance?.qrcode?.base64 ||
+        '';
+      return this.formatQrCode(raw);
+    } catch (e) {
+      console.warn('Erro ao criar instância na Evolution API:', e);
+      return '';
+    }
   }
 
   /**
@@ -71,7 +115,14 @@ export class EvolutionService {
       const res = await fetch(`${baseUrl}/instance/connectionState/${instanceName}`, {
         headers: { apikey: apiKey },
       });
-      if (!res.ok) return { connected: false };
+
+      if (!res.ok) {
+        // Se retornar 404, tenta criar a instância
+        if (res.status === 404) {
+          await this.createInstance();
+        }
+        return { connected: false };
+      }
 
       const data = await res.json();
       const state = data?.instance?.state || data?.state;
@@ -96,18 +147,24 @@ export class EvolutionService {
       const res = await fetch(`${baseUrl}/instance/connect/${instanceName}`, {
         headers: { apikey: apiKey },
       });
-      if (!res.ok) return '';
 
-      const data = await res.json();
-      return (
-        data?.base64 ||
-        data?.qrcode?.base64 ||
-        data?.code ||
-        data?.count?.base64 ||
-        ''
-      );
+      if (res.ok) {
+        const data = await res.json();
+        const raw =
+          data?.base64 ||
+          data?.qrcode?.base64 ||
+          data?.code ||
+          data?.count?.base64 ||
+          data?.instance?.qrcode?.base64 ||
+          '';
+
+        if (raw) return this.formatQrCode(raw);
+      }
+
+      // Se a requisição GET falhar ou não retornar QR Code, tenta criar/obter via POST /instance/create
+      return await this.createInstance();
     } catch {
-      return '';
+      return await this.createInstance();
     }
   }
 
