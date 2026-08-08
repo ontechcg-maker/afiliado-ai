@@ -1,7 +1,7 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext';
 import { InstagramIcon } from '../ui/Icons';
-import { Sparkles, Plus, Loader2, Bot, User, LogOut, LogIn } from 'lucide-react';
+import { Sparkles, Plus, Loader2, Bot, User, LogOut, LogIn, MessageCircle } from 'lucide-react';
 
 export const Header: React.FC = () => {
   const {
@@ -12,6 +12,7 @@ export const Header: React.FC = () => {
     userProfile,
     isAuthenticated,
     openAuthModal,
+    openWhatsAppDrawer,
     logout,
   } = useApp();
 
@@ -19,7 +20,7 @@ export const Header: React.FC = () => {
 
   return (
     <header className="h-16 bg-slate-900/60 border-b border-slate-800/80 px-6 flex items-center justify-between sticky top-0 z-20 backdrop-blur-md">
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
         <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800/60 border border-slate-700/50 text-xs">
           <InstagramIcon className="w-4 h-4 text-pink-400" />
           <span className="text-slate-300">
@@ -31,6 +32,14 @@ export const Header: React.FC = () => {
             }`}
           />
         </div>
+
+        <button
+          onClick={openWhatsAppDrawer}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-950/60 hover:bg-emerald-900/60 border border-emerald-500/30 text-emerald-300 text-xs font-medium transition-all"
+        >
+          <MessageCircle className="w-3.5 h-3.5 text-emerald-400" />
+          <span>WhatsApp Alertas</span>
+        </button>
 
         {activeJobs.length > 0 && (
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-950/60 border border-indigo-500/30 text-xs text-indigo-300 animate-pulse">

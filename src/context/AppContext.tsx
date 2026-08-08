@@ -26,6 +26,8 @@ import { jobQueueService } from '../services/jobQueueService';
 import { SupabaseService } from '../services/supabaseService';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { AuthModal } from '../components/auth/AuthModal';
+import { evolutionService } from '../services/evolutionService';
+import { WhatsAppConfigDrawer } from '../components/whatsapp/WhatsAppConfigDrawer';
 import confetti from 'canvas-confetti';
 
 interface Toast {
@@ -50,6 +52,7 @@ interface AppContextType {
   isDatabaseConnected: boolean;
   isAuthenticated: boolean;
   isAuthModalOpen: boolean;
+  isWhatsAppDrawerOpen: boolean;
   
   // Handlers
   setActiveTab: (tab: ActiveTab) => void;
@@ -58,6 +61,10 @@ interface AppContextType {
   disconnectInstagram: () => Promise<void>;
   updateStrategy: (strategy: Partial<UserStrategy>) => void;
   updateBrandKit: (kit: Partial<BrandKit>) => void;
+
+  // WhatsApp Drawer Handlers
+  openWhatsAppDrawer: () => void;
+  closeWhatsAppDrawer: () => void;
   
   // Auth Handlers
   openAuthModal: () => void;
@@ -115,6 +122,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isDatabaseConnected, setIsDatabaseConnected] = useState<boolean>(false);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+  const [isWhatsAppDrawerOpen, setIsWhatsAppDrawerOpen] = useState<boolean>(false);
+
+  const openWhatsAppDrawer = () => setIsWhatsAppDrawerOpen(true);
+  const closeWhatsAppDrawer = () => setIsWhatsAppDrawerOpen(false);
 
   useEffect(() => {
     const unsubscribe = jobQueueService.subscribe((updatedJobs) => {
@@ -413,6 +424,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     addToast(`🟢 Publicado com sucesso no Instagram @${instagramAccount.username}!`, 'success');
     confetti({ particleCount: 80, spread: 70, origin: { y: 0.5 } });
+
+    // Notificação WhatsApp
+    evolutionService.sendTextMessage(
+      `🚀 *AFILIADO.AI*: Seu conteúdo *"${targetPost.title}"* acaba de ser publicado com sucesso no Instagram @${instagramAccount.username}!`
+    );
   };
 
   const generateAutoCampaignForProduct = (productId: string) => {
@@ -427,6 +443,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     addToast(`✨ Campanha criada! 4 conteúdos adicionados ao calendário.`, 'success');
     confetti({ particleCount: 70, spread: 60 });
+
+    // Notificação WhatsApp
+    evolutionService.sendTextMessage(
+      `✨ *AFILIADO.AI*: Uma nova campanha 360° (Reel, Carrossel, Post e Stories) foi gerada pela IA Gemini 2.5 Pro para o produto *"${product.name}"*!`
+    );
   };
 
   const generateAutoContentPlan = () => {
@@ -481,6 +502,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         isDatabaseConnected,
         isAuthenticated,
         isAuthModalOpen,
+        isWhatsAppDrawerOpen,
+        openWhatsAppDrawer,
+        closeWhatsAppDrawer,
         openAuthModal,
         closeAuthModal,
         loginWithEmail,
@@ -509,6 +533,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     >
       {children}
       <AuthModal isOpen={isAuthModalOpen} onClose={closeAuthModal} />
+      <WhatsAppConfigDrawer isOpen={isWhatsAppDrawerOpen} onClose={closeWhatsAppDrawer} />
     </AppContext.Provider>
   );
 };
