@@ -14,21 +14,21 @@ export const INITIAL_INSTAGRAM_ACCOUNT: InstagramAccount = {
 };
 
 export const INITIAL_USER_STRATEGY: UserStrategy = {
-  profileName: 'Achadinhos Incríveis ✨',
-  username: 'achadinhos.top.afiliado',
-  niche: 'Achadinhos & Casa Inteligente',
-  subniche: 'Organização, Cozinha & Utensílios Virais',
-  targetAudience: 'Homens e Mulheres de 22 a 45 anos interessados em praticidade no lar e ofertas',
+  profileName: 'etomepromo',
+  username: 'etomepromo',
+  niche: 'Achadinhos & Ofertas Virais',
+  subniche: 'Organização, Cozinha & Eletrônicos',
+  targetAudience: 'Homens e Mulheres interessados em produtos virais e ofertas exclusivas',
   ageRange: '25-44',
   genderPredominant: 'Feminino (68%)',
-  region: 'Brasil (São Paulo, Rio de Janeiro, MG)',
+  region: 'Brasil',
   primaryObjectives: ['gain_followers', 'generate_sales', 'increase_engagement'],
   visualStyle: 'Moderno',
   communicationTone: 'Persuasivo',
   postingFrequency: 2,
   preferredPostingHours: ['11:30', '19:30'],
-  affiliateLinks: ['https://shopee.com.br/shop/achadinhos', 'https://amzn.to/3xyz'],
-  marketplaces: ['Shopee', 'Amazon', 'Hotmart'],
+  affiliateLinks: ['https://shopee.com.br/etomepromo'],
+  marketplaces: ['Shopee', 'Amazon', 'Mercado Livre'],
   distribution: {
     attraction: 40,
     viral: 25,
@@ -38,7 +38,7 @@ export const INITIAL_USER_STRATEGY: UserStrategy = {
 };
 
 export const INITIAL_BRAND_KIT: BrandKit = {
-  brandName: 'Achadinhos Incríveis',
+  brandName: 'etomepromo',
   primaryColor: '#8B5CF6',
   secondaryColor: '#EC4899',
   accentColor: '#10B981',
