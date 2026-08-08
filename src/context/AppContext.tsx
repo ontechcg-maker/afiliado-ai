@@ -236,6 +236,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [userProfile.id]);
 
   const loadUserData = (userId: string) => {
+    SupabaseService.fetchProfile(userId).then((dbProfile) => {
+      if (dbProfile) {
+        setUserProfile((prev) => ({
+          ...prev,
+          fullName: dbProfile.fullName || prev.fullName,
+          planTier: dbProfile.planTier || prev.planTier,
+          avatarUrl: dbProfile.avatarUrl || prev.avatarUrl,
+        }));
+      }
+    });
+
     SupabaseService.fetchProducts(userId).then((dbProducts) => {
       setProducts(dbProducts || []);
     });
