@@ -1,10 +1,19 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext';
 import { InstagramIcon } from '../ui/Icons';
-import { Sparkles, Plus, Loader2, Bot } from 'lucide-react';
+import { Sparkles, Plus, Loader2, Bot, User, LogOut, LogIn } from 'lucide-react';
 
 export const Header: React.FC = () => {
-  const { instagramAccount, generateAutoContentPlan, setActiveTab, jobs } = useApp();
+  const {
+    instagramAccount,
+    generateAutoContentPlan,
+    setActiveTab,
+    jobs,
+    userProfile,
+    isAuthenticated,
+    openAuthModal,
+    logout,
+  } = useApp();
 
   const activeJobs = jobs.filter((j) => j.status === 'processing' || j.status === 'rendering');
 
@@ -32,6 +41,29 @@ export const Header: React.FC = () => {
       </div>
 
       <div className="flex items-center gap-3">
+        {/* Profile & Auth Section */}
+        {isAuthenticated ? (
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/60 text-xs">
+            <User className="w-3.5 h-3.5 text-indigo-400" />
+            <span className="text-slate-200 font-medium truncate max-w-[120px]">{userProfile.fullName}</span>
+            <button
+              onClick={() => logout()}
+              title="Sair da conta"
+              className="p-1 hover:bg-slate-700 rounded-lg text-slate-400 hover:text-rose-400 transition-colors ml-1"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={openAuthModal}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 text-xs font-bold border border-indigo-500/30 transition-all"
+          >
+            <LogIn className="w-3.5 h-3.5" />
+            <span>Entrar / Cadastrar</span>
+          </button>
+        )}
+
         <button
           onClick={() => setActiveTab('consultant')}
           className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700/60 transition-all"

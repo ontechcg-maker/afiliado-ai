@@ -24,7 +24,8 @@ import { metaApiService } from '../services/metaApiService';
 import { AIContentEngine } from '../services/aiContentEngine';
 import { jobQueueService } from '../services/jobQueueService';
 import { SupabaseService } from '../services/supabaseService';
-import { isSupabaseConfigured } from '../lib/supabase';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { AuthModal } from '../components/auth/AuthModal';
 import confetti from 'canvas-confetti';
 
 interface Toast {
@@ -47,6 +48,8 @@ interface AppContextType {
   toasts: Toast[];
   isOnboardingCompleted: boolean;
   isDatabaseConnected: boolean;
+  isAuthenticated: boolean;
+  isAuthModalOpen: boolean;
   
   // Handlers
   setActiveTab: (tab: ActiveTab) => void;
@@ -55,6 +58,13 @@ interface AppContextType {
   disconnectInstagram: () => Promise<void>;
   updateStrategy: (strategy: Partial<UserStrategy>) => void;
   updateBrandKit: (kit: Partial<BrandKit>) => void;
+  
+  // Auth Handlers
+  openAuthModal: () => void;
+  closeAuthModal: () => void;
+  loginWithEmail: (email: string, password: string) => Promise<boolean>;
+  signUpWithEmail: (email: string, password: string, fullName: string) => Promise<boolean>;
+  logout: () => Promise<void>;
   
   // Product CRUD
   addProduct: (product: Omit<Product, 'id' | 'createdAt'>) => Product;
@@ -83,7 +93,7 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [userProfile] = useState<Profile>({
+  const [userProfile, setUserProfile] = useState<Profile>({
     id: 'user-01',
     email: 'afiliado.pro@exemplo.com',
     fullName: 'Alex Afiliado Pro',
@@ -103,6 +113,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [isOnboardingCompleted, setIsOnboardingCompleted] = useState<boolean>(true);
   const [isDatabaseConnected, setIsDatabaseConnected] = useState<boolean>(false);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
 
   useEffect(() => {
     const unsubscribe = jobQueueService.subscribe((updatedJobs) => {
@@ -111,33 +123,145 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return unsubscribe;
   }, []);
 
-  // Carregamento inicial do Supabase Backend
+  // Escuta a sessão de autenticação do Supabase
   useEffect(() => {
-    if (isSupabaseConfigured()) {
+    if (isSupabaseConfigured() && supabase) {
       setIsDatabaseConnected(true);
-      addToast('🟢 Supabase Backend conectado em tempo real (Projeto: afiliado-ai)!', 'success');
 
-      SupabaseService.fetchProducts().then((dbProducts) => {
-        if (dbProducts && dbProducts.length > 0) setProducts(dbProducts);
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session && session.user) {
+          setIsAuthenticated(true);
+          const userId = session.user.id;
+          const userEmail = session.user.email || '';
+          const userFullName = session.user.user_metadata?.full_name || 'Afiliado Pro';
+
+          setUserProfile({
+            id: userId,
+            email: userEmail,
+            fullName: userFullName,
+            avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
+            planTier: 'pro',
+          });
+
+          // Carrega dados do usuário autenticado
+          loadUserData(userId);
+        }
       });
 
-      SupabaseService.fetchPosts().then((dbPosts) => {
-        if (dbPosts && dbPosts.length > 0) setPosts(dbPosts);
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        if (session && session.user) {
+          setIsAuthenticated(true);
+          const userId = session.user.id;
+          const userEmail = session.user.email || '';
+          const userFullName = session.user.user_metadata?.full_name || 'Afiliado Pro';
+
+          setUserProfile({
+            id: userId,
+            email: userEmail,
+            fullName: userFullName,
+            avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
+            planTier: 'pro',
+          });
+
+          loadUserData(userId);
+        } else {
+          setIsAuthenticated(false);
+        }
       });
 
-      SupabaseService.fetchStrategy().then((dbStrategy) => {
-        if (dbStrategy) setUserStrategy(dbStrategy);
-      });
-
-      SupabaseService.fetchBrandKit().then((dbBrandKit) => {
-        if (dbBrandKit) setBrandKit(dbBrandKit);
-      });
-
-      SupabaseService.fetchAutopilot().then((dbAutopilot) => {
-        if (dbAutopilot) setAutopilot(dbAutopilot);
-      });
+      return () => {
+        subscription.unsubscribe();
+      };
     }
   }, []);
+
+  const loadUserData = (userId: string) => {
+    SupabaseService.fetchProducts(userId).then((dbProducts) => {
+      if (dbProducts && dbProducts.length > 0) setProducts(dbProducts);
+    });
+
+    SupabaseService.fetchPosts(userId).then((dbPosts) => {
+      if (dbPosts && dbPosts.length > 0) setPosts(dbPosts);
+    });
+
+    SupabaseService.fetchStrategy(userId).then((dbStrategy) => {
+      if (dbStrategy) setUserStrategy(dbStrategy);
+    });
+
+    SupabaseService.fetchBrandKit(userId).then((dbBrandKit) => {
+      if (dbBrandKit) setBrandKit(dbBrandKit);
+    });
+
+    SupabaseService.fetchAutopilot(userId).then((dbAutopilot) => {
+      if (dbAutopilot) setAutopilot(dbAutopilot);
+    });
+  };
+
+  const openAuthModal = () => setIsAuthModalOpen(true);
+  const closeAuthModal = () => setIsAuthModalOpen(false);
+
+  const loginWithEmail = async (email: string, password: string): Promise<boolean> => {
+    if (!isSupabaseConfigured() || !supabase) {
+      addToast('Supabase não configurado. Rodando em modo simulação.', 'warning');
+      setIsAuthenticated(true);
+      return true;
+    }
+
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      addToast(`Erro no login: ${error.message}`, 'error');
+      return false;
+    }
+
+    if (data.session) {
+      addToast(`👋 Bem-vindo de volta, ${data.user.user_metadata?.full_name || email}!`, 'success');
+      confetti({ particleCount: 60, spread: 60 });
+      return true;
+    }
+    return false;
+  };
+
+  const signUpWithEmail = async (email: string, password: string, fullName: string): Promise<boolean> => {
+    if (!isSupabaseConfigured() || !supabase) {
+      addToast('Conta simulada criada com sucesso no modo local.', 'success');
+      setIsAuthenticated(true);
+      return true;
+    }
+
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { full_name: fullName },
+      },
+    });
+
+    if (error) {
+      addToast(`Erro ao criar conta: ${error.message}`, 'error');
+      return false;
+    }
+
+    if (data.user) {
+      await SupabaseService.saveProfile({
+        id: data.user.id,
+        email,
+        fullName,
+        planTier: 'pro',
+      });
+      addToast('🎉 Conta criada com sucesso! Faça login para continuar.', 'success');
+      confetti({ particleCount: 80, spread: 70 });
+      return true;
+    }
+    return false;
+  };
+
+  const logout = async () => {
+    if (isSupabaseConfigured() && supabase) {
+      await supabase.auth.signOut();
+    }
+    setIsAuthenticated(false);
+    addToast('Sessão encerrada com sucesso.', 'info');
+  };
 
   const addToast = (message: string, type: 'success' | 'info' | 'warning' | 'error' = 'info') => {
     const id = `toast-${Date.now()}`;
@@ -355,6 +479,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         toasts,
         isOnboardingCompleted,
         isDatabaseConnected,
+        isAuthenticated,
+        isAuthModalOpen,
+        openAuthModal,
+        closeAuthModal,
+        loginWithEmail,
+        signUpWithEmail,
+        logout,
         setActiveTab,
         setIsOnboardingCompleted,
         connectInstagram,
@@ -377,6 +508,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }}
     >
       {children}
+      <AuthModal isOpen={isAuthModalOpen} onClose={closeAuthModal} />
     </AppContext.Provider>
   );
 };

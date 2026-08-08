@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import type {
+  Profile,
   Product,
   ContentPost,
   UserStrategy,
@@ -8,14 +9,44 @@ import type {
 } from '../types';
 
 export class SupabaseService {
-  // --- PRODUCTS ---
-  static async fetchProducts(): Promise<Product[] | null> {
+  // --- PROFILES & AUTH ---
+  static async fetchProfile(userId: string): Promise<Profile | null> {
     if (!isSupabaseConfigured() || !supabase) return null;
-    const { data, error } = await supabase
-      .from('products')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).single();
+    if (error || !data) return null;
 
+    return {
+      id: data.id,
+      email: data.email,
+      fullName: data.full_name || '',
+      avatarUrl: data.avatar_url || undefined,
+      planTier: data.plan_tier || 'pro',
+    };
+  }
+
+  static async saveProfile(profile: Profile): Promise<boolean> {
+    if (!isSupabaseConfigured() || !supabase) return false;
+    const payload = {
+      id: profile.id,
+      email: profile.email,
+      full_name: profile.fullName,
+      avatar_url: profile.avatarUrl || null,
+      plan_tier: profile.planTier,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error } = await supabase.from('profiles').upsert(payload);
+    if (error) console.error('Erro ao salvar perfil no Supabase:', error);
+    return !error;
+  }
+
+  // --- PRODUCTS ---
+  static async fetchProducts(userId?: string): Promise<Product[] | null> {
+    if (!isSupabaseConfigured() || !supabase) return null;
+    let query = supabase.from('products').select('*').order('created_at', { ascending: false });
+    if (userId) query = query.eq('user_id', userId);
+
+    const { data, error } = await query;
     if (error) {
       console.error('Erro ao buscar produtos do Supabase:', error);
       return null;
@@ -40,9 +71,9 @@ export class SupabaseService {
     }));
   }
 
-  static async saveProduct(product: Product): Promise<boolean> {
+  static async saveProduct(product: Product, userId?: string): Promise<boolean> {
     if (!isSupabaseConfigured() || !supabase) return false;
-    const payload = {
+    const payload: any = {
       name: product.name,
       photo_url: product.photoUrl,
       description: product.description,
@@ -57,6 +88,7 @@ export class SupabaseService {
       benefits: product.benefits,
       viral_score: product.viralScore,
     };
+    if (userId) payload.user_id = userId;
 
     const { error } = await supabase.from('products').upsert(payload);
     if (error) console.error('Erro ao salvar produto no Supabase:', error);
@@ -71,13 +103,12 @@ export class SupabaseService {
   }
 
   // --- CONTENT POSTS ---
-  static async fetchPosts(): Promise<ContentPost[] | null> {
+  static async fetchPosts(userId?: string): Promise<ContentPost[] | null> {
     if (!isSupabaseConfigured() || !supabase) return null;
-    const { data, error } = await supabase
-      .from('content_posts')
-      .select('*')
-      .order('scheduled_for', { ascending: false });
+    let query = supabase.from('content_posts').select('*').order('scheduled_for', { ascending: false });
+    if (userId) query = query.eq('user_id', userId);
 
+    const { data, error } = await query;
     if (error) {
       console.error('Erro ao buscar posts do Supabase:', error);
       return null;
@@ -108,9 +139,9 @@ export class SupabaseService {
     }));
   }
 
-  static async savePost(post: ContentPost): Promise<boolean> {
+  static async savePost(post: ContentPost, userId?: string): Promise<boolean> {
     if (!isSupabaseConfigured() || !supabase) return false;
-    const payload = {
+    const payload: any = {
       product_id: post.productId || null,
       product_name: post.productName || null,
       title: post.title,
@@ -128,6 +159,7 @@ export class SupabaseService {
       carousel_slides: post.carouselSlides || null,
       analytics: post.analytics,
     };
+    if (userId) payload.user_id = userId;
 
     const { error } = await supabase.from('content_posts').upsert(payload);
     if (error) console.error('Erro ao salvar post no Supabase:', error);
@@ -142,9 +174,12 @@ export class SupabaseService {
   }
 
   // --- STRATEGY ---
-  static async fetchStrategy(): Promise<UserStrategy | null> {
+  static async fetchStrategy(userId?: string): Promise<UserStrategy | null> {
     if (!isSupabaseConfigured() || !supabase) return null;
-    const { data, error } = await supabase.from('user_strategies').select('*').single();
+    let query = supabase.from('user_strategies').select('*');
+    if (userId) query = query.eq('user_id', userId);
+
+    const { data, error } = await query.single();
     if (error || !data) return null;
 
     return {
@@ -167,9 +202,9 @@ export class SupabaseService {
     };
   }
 
-  static async saveStrategy(strategy: UserStrategy): Promise<boolean> {
+  static async saveStrategy(strategy: UserStrategy, userId?: string): Promise<boolean> {
     if (!isSupabaseConfigured() || !supabase) return false;
-    const payload = {
+    const payload: any = {
       profile_name: strategy.profileName,
       username: strategy.username,
       niche: strategy.niche,
@@ -187,6 +222,7 @@ export class SupabaseService {
       marketplaces: strategy.marketplaces,
       distribution: strategy.distribution,
     };
+    if (userId) payload.user_id = userId;
 
     const { error } = await supabase.from('user_strategies').upsert(payload);
     if (error) console.error('Erro ao salvar estratégia no Supabase:', error);
@@ -194,9 +230,12 @@ export class SupabaseService {
   }
 
   // --- BRAND KIT ---
-  static async fetchBrandKit(): Promise<BrandKit | null> {
+  static async fetchBrandKit(userId?: string): Promise<BrandKit | null> {
     if (!isSupabaseConfigured() || !supabase) return null;
-    const { data, error } = await supabase.from('brand_kits').select('*').single();
+    let query = supabase.from('brand_kits').select('*');
+    if (userId) query = query.eq('user_id', userId);
+
+    const { data, error } = await query.single();
     if (error || !data) return null;
 
     return {
@@ -213,9 +252,9 @@ export class SupabaseService {
     };
   }
 
-  static async saveBrandKit(brandKit: BrandKit): Promise<boolean> {
+  static async saveBrandKit(brandKit: BrandKit, userId?: string): Promise<boolean> {
     if (!isSupabaseConfigured() || !supabase) return false;
-    const payload = {
+    const payload: any = {
       brand_name: brandKit.brandName,
       primary_color: brandKit.primaryColor,
       secondary_color: brandKit.secondaryColor,
@@ -227,6 +266,7 @@ export class SupabaseService {
       watermark_enabled: brandKit.watermarkEnabled,
       watermark_position: brandKit.watermarkPosition,
     };
+    if (userId) payload.user_id = userId;
 
     const { error } = await supabase.from('brand_kits').upsert(payload);
     if (error) console.error('Erro ao salvar Brand Kit no Supabase:', error);
@@ -234,9 +274,12 @@ export class SupabaseService {
   }
 
   // --- AUTOPILOT ---
-  static async fetchAutopilot(): Promise<AutopilotSettings | null> {
+  static async fetchAutopilot(userId?: string): Promise<AutopilotSettings | null> {
     if (!isSupabaseConfigured() || !supabase) return null;
-    const { data, error } = await supabase.from('autopilot_settings').select('*').single();
+    let query = supabase.from('autopilot_settings').select('*');
+    if (userId) query = query.eq('user_id', userId);
+
+    const { data, error } = await query.single();
     if (error || !data) return null;
 
     return {
@@ -248,15 +291,16 @@ export class SupabaseService {
     };
   }
 
-  static async saveAutopilot(autopilot: AutopilotSettings): Promise<boolean> {
+  static async saveAutopilot(autopilot: AutopilotSettings, userId?: string): Promise<boolean> {
     if (!isSupabaseConfigured() || !supabase) return false;
-    const payload = {
+    const payload: any = {
       enabled: autopilot.enabled,
       posts_per_day: autopilot.postsPerDay,
       require_approval: autopilot.requireApproval,
       last_run_at: autopilot.lastRunAt || null,
       next_run_at: autopilot.nextRunAt || null,
     };
+    if (userId) payload.user_id = userId;
 
     const { error } = await supabase.from('autopilot_settings').upsert(payload);
     if (error) console.error('Erro ao salvar Autopilot no Supabase:', error);
