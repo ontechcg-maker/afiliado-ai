@@ -1,19 +1,38 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { AIContentEngine } from '../../services/aiContentEngine';
-import type { ReelScript } from '../../types';
+import type { Product, ReelScript } from '../../types';
 import { Video, Sparkles, VolumeX, Volume2, Play, Music, Camera, Layers, Wand2 } from 'lucide-react';
+
+const sampleProduct: Product = {
+  id: 'sample-prod-1',
+  name: 'Mini Processador de Alimentos Elétrico sem Fio',
+  description: 'Processa alho, pimenta, legumes e temperos em 10 segundos com lâmina tripla de aço inox e carregamento USB-C.',
+  category: 'Cozinha & Praticidade',
+  price: 39.90,
+  originalPrice: 79.90,
+  affiliateLink: 'https://shopee.com.br/sample',
+  marketplace: 'Shopee',
+  commissionPercentage: 20.0,
+  photoUrl: 'https://images.unsplash.com/photo-1584269600464-37b1b58a9fe7?auto=format&fit=crop&w=600&q=80',
+  brand: 'Achadinhos Tech',
+  features: ['Carregamento USB-C', 'Lâmina Inox Tripla', 'Resistente à água'],
+  benefits: ['Tritura em 10 segundos', 'Sem sujeira na cozinha', 'Bateria dura 30 dias'],
+  viralScore: 9.8,
+  createdAt: new Date().toISOString(),
+};
 
 export const ReelsStudio: React.FC = () => {
   const { products, createPost, setActiveTab, addToast } = useApp();
 
-  const [selectedProductId, setSelectedProductId] = useState<string>(products[0]?.id || '');
+  const displayProducts = products.length > 0 ? products : [sampleProduct];
+  const [selectedProductId, setSelectedProductId] = useState<string>(displayProducts[0]?.id || sampleProduct.id);
   const [durationSeconds, setDurationSeconds] = useState<number>(15);
   const [structureModel, setStructureModel] = useState<string>('Modelo 1 — Gancho + produto + CTA');
   const [narratorMode, setNarratorMode] = useState<'no_voice' | 'voiceover'>('no_voice');
   const [generatedScript, setGeneratedScript] = useState<ReelScript | null>(null);
 
-  const selectedProduct = products.find((p) => p.id === selectedProductId) || products[0];
+  const selectedProduct = displayProducts.find((p) => p.id === selectedProductId) || displayProducts[0] || sampleProduct;
 
   const modelsList = [
     { name: 'Modelo 1 — Gancho + produto + CTA', desc: '0–2s Gancho visual forte, 2–7s Apresentação, 7–10s Benefício, Final CTA' },
@@ -100,7 +119,7 @@ export const ReelsStudio: React.FC = () => {
               onChange={(e) => setSelectedProductId(e.target.value)}
               className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:border-indigo-500 focus:outline-none"
             >
-              {products.map((p) => (
+              {displayProducts.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name} (R${p.price.toFixed(2)})
                 </option>
