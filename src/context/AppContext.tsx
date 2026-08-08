@@ -393,6 +393,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const account = await metaApiService.connectAccount(username, name, followersCount, mediaCount);
       setInstagramAccount(account);
+      setUserStrategy((prev) => {
+        const updated = { ...prev, username: account.username, profileName: account.name };
+        if (userProfile.id && userProfile.id !== 'guest') {
+          SupabaseService.saveStrategy(updated);
+        }
+        return updated;
+      });
       if (userProfile.id && userProfile.id !== 'guest') {
         await SupabaseService.saveInstagramAccount(account, userProfile.id);
       }
