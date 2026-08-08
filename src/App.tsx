@@ -3,6 +3,7 @@ import { AppProvider, useApp } from './context/AppContext';
 import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
 import { ToastContainer } from './components/layout/ToastContainer';
+import { AuthPage } from './components/auth/AuthPage';
 import { OnboardingWizard } from './components/onboarding/OnboardingWizard';
 import { DashboardOverview } from './components/dashboard/DashboardOverview';
 import { AIContentStudio } from './components/studio/AIContentStudio';
@@ -20,7 +21,16 @@ import { ContentLibrary } from './components/library/ContentLibrary';
 import { SettingsView } from './components/settings/SettingsView';
 
 const MainLayout: React.FC = () => {
-  const { activeTab, isOnboardingCompleted } = useApp();
+  const { activeTab, isOnboardingCompleted, isAuthenticated } = useApp();
+
+  if (!isAuthenticated) {
+    return (
+      <>
+        <AuthPage />
+        <ToastContainer />
+      </>
+    );
+  }
 
   const renderTabContent = () => {
     switch (activeTab) {
