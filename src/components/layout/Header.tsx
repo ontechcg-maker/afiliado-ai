@@ -13,6 +13,7 @@ export const Header: React.FC = () => {
     isAuthenticated,
     openAuthModal,
     openWhatsAppDrawer,
+    openInstagramModal,
     logout,
   } = useApp();
 
@@ -21,17 +22,21 @@ export const Header: React.FC = () => {
   return (
     <header className="h-16 bg-slate-900/60 border-b border-slate-800/80 px-6 flex items-center justify-between sticky top-0 z-20 backdrop-blur-md">
       <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800/60 border border-slate-700/50 text-xs">
+        <button
+          onClick={openInstagramModal}
+          title="Clique para conectar ou alterar sua conta do Instagram"
+          className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800/60 hover:bg-slate-700/70 border border-slate-700/50 text-xs transition-all cursor-pointer"
+        >
           <InstagramIcon className="w-4 h-4 text-pink-400" />
           <span className="text-slate-300">
-            {instagramAccount.isConnected ? `@${instagramAccount.username}` : 'Instagram Desconectado'}
+            {instagramAccount.isConnected && instagramAccount.username ? `@${instagramAccount.username}` : 'Instagram Desconectado'}
           </span>
           <span
             className={`w-2 h-2 rounded-full ${
               instagramAccount.isConnected ? 'bg-emerald-400 animate-pulse' : 'bg-rose-500'
             }`}
           />
-        </div>
+        </button>
 
         <button
           onClick={openWhatsAppDrawer}

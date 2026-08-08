@@ -99,17 +99,24 @@ export class MetaApiService {
   /**
    * Conexão simulada / fallback
    */
-  async connectAccount(): Promise<InstagramAccount> {
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+  /**
+   * Conexão de conta do Instagram do Usuário
+   */
+  async connectAccount(customUsername?: string, customName?: string): Promise<InstagramAccount> {
+    await new Promise((resolve) => setTimeout(resolve, 800));
+
+    const cleanUsername = customUsername
+      ? customUsername.replace(/^@/, '').trim()
+      : 'seuperfil.oficial';
 
     return {
       id: `ig-${Date.now()}`,
-      instagramUserId: '1784140998877665',
-      username: 'achadinhos.top.afiliado',
-      name: 'Achadinhos Incríveis ✨',
+      instagramUserId: `178414${Date.now().toString().slice(-10)}`,
+      username: cleanUsername,
+      name: customName || `@${cleanUsername}`,
       profilePictureUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
-      followersCount: 14820,
-      mediaCount: 184,
+      followersCount: 1480,
+      mediaCount: 42,
       accountType: 'BUSINESS',
       isConnected: true,
       connectedAt: new Date().toISOString(),

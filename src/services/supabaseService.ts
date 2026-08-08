@@ -1,6 +1,7 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import type {
   Profile,
+  InstagramAccount,
   Product,
   ContentPost,
   UserStrategy,
@@ -37,6 +38,52 @@ export class SupabaseService {
 
     const { error } = await supabase.from('profiles').upsert(payload);
     if (error) console.error('Erro ao salvar perfil no Supabase:', error);
+    return !error;
+  }
+
+  static async fetchInstagramAccount(userId: string): Promise<InstagramAccount | null> {
+    if (!isSupabaseConfigured() || !supabase) return null;
+    const { data, error } = await supabase
+      .from('instagram_accounts')
+      .select('*')
+      .eq('user_id', userId)
+      .order('connected_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error || !data) return null;
+
+    return {
+      id: data.id,
+      instagramUserId: data.instagram_user_id,
+      username: data.username,
+      name: data.name || data.username,
+      profilePictureUrl: data.profile_picture_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
+      followersCount: data.followers_count || 1200,
+      mediaCount: data.media_count || 45,
+      accountType: (data.account_type as any) || 'BUSINESS',
+      isConnected: data.is_connected,
+      connectedAt: data.connected_at,
+    };
+  }
+
+  static async saveInstagramAccount(account: InstagramAccount, userId: string): Promise<boolean> {
+    if (!isSupabaseConfigured() || !supabase) return false;
+    const payload = {
+      user_id: userId,
+      instagram_user_id: account.instagramUserId || `ig-${Date.now()}`,
+      username: account.username,
+      name: account.name,
+      profile_picture_url: account.profilePictureUrl,
+      followers_count: account.followersCount || 1200,
+      media_count: account.mediaCount || 45,
+      account_type: account.accountType || 'BUSINESS',
+      is_connected: account.isConnected,
+      connected_at: account.connectedAt || new Date().toISOString(),
+    };
+
+    const { error } = await supabase.from('instagram_accounts').upsert(payload, { onConflict: 'user_id,username' });
+    if (error) console.error('Erro ao salvar conta do Instagram no Supabase:', error);
     return !error;
   }
 

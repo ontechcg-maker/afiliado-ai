@@ -28,6 +28,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { AuthModal } from '../components/auth/AuthModal';
 import { evolutionService } from '../services/evolutionService';
 import { WhatsAppConfigDrawer } from '../components/whatsapp/WhatsAppConfigDrawer';
+import { InstagramConnectModal } from '../components/instagram/InstagramConnectModal';
 import confetti from 'canvas-confetti';
 
 interface Toast {
@@ -53,12 +54,16 @@ interface AppContextType {
   isAuthenticated: boolean;
   isAuthModalOpen: boolean;
   isWhatsAppDrawerOpen: boolean;
+  isInstagramModalOpen: boolean;
   
   // Handlers
   setActiveTab: (tab: ActiveTab) => void;
   setIsOnboardingCompleted: (status: boolean) => void;
   connectInstagram: () => Promise<void>;
+  connectInstagramCustom: (username: string, name?: string) => Promise<void>;
   disconnectInstagram: () => Promise<void>;
+  openInstagramModal: () => void;
+  closeInstagramModal: () => void;
   updateStrategy: (strategy: Partial<UserStrategy>) => void;
   updateBrandKit: (kit: Partial<BrandKit>) => void;
 
@@ -139,6 +144,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [isWhatsAppDrawerOpen, setIsWhatsAppDrawerOpen] = useState<boolean>(false);
+  const [isInstagramModalOpen, setIsInstagramModalOpen] = useState<boolean>(false);
 
   const openWhatsAppDrawer = () => setIsWhatsAppDrawerOpen(true);
   const closeWhatsAppDrawer = () => setIsWhatsAppDrawerOpen(false);
@@ -221,6 +227,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     SupabaseService.fetchAutopilot(userId).then((dbAutopilot) => {
       if (dbAutopilot) setAutopilot(dbAutopilot);
+    });
+
+    SupabaseService.fetchInstagramAccount(userId).then((dbIg) => {
+      if (dbIg) setInstagramAccount(dbIg);
     });
   };
 
@@ -340,11 +350,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
+  const openInstagramModal = () => setIsInstagramModalOpen(true);
+  const closeInstagramModal = () => setIsInstagramModalOpen(false);
+
   const connectInstagram = async () => {
+    setIsInstagramModalOpen(true);
+  };
+
+  const connectInstagramCustom = async (username: string, name?: string) => {
     try {
-      const account = await metaApiService.connectAccount();
+      const account = await metaApiService.connectAccount(username, name);
       setInstagramAccount(account);
-      addToast('🟢 Instagram conectado com sucesso via Meta API oficial!', 'success');
+      if (userProfile.id && userProfile.id !== 'guest') {
+        await SupabaseService.saveInstagramAccount(account, userProfile.id);
+      }
+      addToast(`🟢 Instagram @${account.username} conectado com sucesso!`, 'success');
       confetti({ particleCount: 60, spread: 60, origin: { y: 0.6 } });
     } catch {
       addToast('Erro ao conectar conta do Instagram', 'error');
@@ -353,7 +373,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const disconnectInstagram = async () => {
     await metaApiService.disconnectAccount();
-    setInstagramAccount((prev) => ({ ...prev, isConnected: false }));
+    const disconnectedAcc: InstagramAccount = {
+      ...instagramAccount,
+      isConnected: false,
+    };
+    setInstagramAccount(disconnectedAcc);
+    if (userProfile.id && userProfile.id !== 'guest') {
+      await SupabaseService.saveInstagramAccount(disconnectedAcc, userProfile.id);
+    }
     addToast('Conta do Instagram desconectada', 'info');
   };
 
@@ -555,8 +582,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         isAuthenticated,
         isAuthModalOpen,
         isWhatsAppDrawerOpen,
+        isInstagramModalOpen,
         openWhatsAppDrawer,
         closeWhatsAppDrawer,
+        openInstagramModal,
+        closeInstagramModal,
         openAuthModal,
         closeAuthModal,
         loginWithEmail,
@@ -565,6 +595,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setActiveTab,
         setIsOnboardingCompleted,
         connectInstagram,
+        connectInstagramCustom,
         disconnectInstagram,
         updateStrategy,
         updateBrandKit,
@@ -586,6 +617,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       {children}
       <AuthModal isOpen={isAuthModalOpen} onClose={closeAuthModal} />
       <WhatsAppConfigDrawer isOpen={isWhatsAppDrawerOpen} onClose={closeWhatsAppDrawer} />
+      <InstagramConnectModal isOpen={isInstagramModalOpen} onClose={closeInstagramModal} />
     </AppContext.Provider>
   );
 };
