@@ -64,17 +64,24 @@ export const DashboardOverview: React.FC = () => {
 
   const currentChartData = chartDataMap[period];
 
-  // Cálculo acumulado das métricas de posts publicados
+  // Cálculo acumulado das métricas reais de posts publicados
   const publishedPosts = posts.filter((p) => p.status === 'published');
-  const totalLikes = publishedPosts.reduce((acc, p) => acc + (p.analytics.likes || 0), 980);
-  const totalComments = publishedPosts.reduce((acc, p) => acc + (p.analytics.comments || 0), 142);
-  const totalSaves = publishedPosts.reduce((acc, p) => acc + (p.analytics.saves || 0), 520);
-  const totalShares = publishedPosts.reduce((acc, p) => acc + (p.analytics.shares || 0), 310);
-  const totalClicks = publishedPosts.reduce((acc, p) => acc + (p.analytics.clicks || 0), 210);
+  const totalLikes = publishedPosts.reduce((acc, p) => acc + (p.analytics?.likes || 0), 0);
+  const totalComments = publishedPosts.reduce((acc, p) => acc + (p.analytics?.comments || 0), 0);
+  const totalSaves = publishedPosts.reduce((acc, p) => acc + (p.analytics?.saves || 0), 0);
+  const totalShares = publishedPosts.reduce((acc, p) => acc + (p.analytics?.shares || 0), 0);
+  const totalClicks = publishedPosts.reduce((acc, p) => acc + (p.analytics?.clicks || 0), 0);
+  const totalReach = publishedPosts.reduce((acc, p) => acc + (p.analytics?.reach || 0), 0);
+  const totalImpressions = publishedPosts.reduce((acc, p) => acc + (p.analytics?.impressions || 0), 0);
 
   const reelsCount = posts.filter((p) => p.type === 'reel').length;
   const carouselsCount = posts.filter((p) => p.type === 'carousel').length;
   const postsCount = posts.filter((p) => p.type === 'post').length;
+
+  const formatK = (num: number) => {
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'k';
+    return num.toString();
+  };
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto animate-fadeIn">
@@ -141,10 +148,8 @@ export const DashboardOverview: React.FC = () => {
             <span className="text-[11px] font-medium">Alcance Total</span>
             <TrendingUp className="w-4 h-4 text-emerald-400" />
           </div>
-          <p className="text-xl font-bold text-white">36.5k</p>
-          <span className="text-[10px] text-emerald-400 font-semibold flex items-center gap-0.5 mt-1">
-            <ArrowUpRight className="w-3 h-3" /> +24% vs mês ant.
-          </span>
+          <p className="text-xl font-bold text-white">{formatK(totalReach)}</p>
+          <span className="text-[10px] text-slate-400 font-medium mt-1 block">Contas alcançadas</span>
         </div>
 
         {/* Impressões */}
@@ -153,7 +158,7 @@ export const DashboardOverview: React.FC = () => {
             <span className="text-[11px] font-medium">Impressões</span>
             <Eye className="w-4 h-4 text-purple-400" />
           </div>
-          <p className="text-xl font-bold text-white">58.2k</p>
+          <p className="text-xl font-bold text-white">{formatK(totalImpressions)}</p>
           <span className="text-[10px] text-slate-400 font-medium mt-1 block">Visualizações totais</span>
         </div>
 

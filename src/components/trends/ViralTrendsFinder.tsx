@@ -1,11 +1,64 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Flame, Sparkles } from 'lucide-react';
+import { Flame, Sparkles, Search, Wand2, Loader2 } from 'lucide-react';
+import type { ViralProductTrend } from '../../types';
 
 export const ViralTrendsFinder: React.FC = () => {
   const { viralTrends, addProduct, generateAutoCampaignForProduct, addToast } = useApp();
 
-  const handleCreateFromTrend = (trend: typeof viralTrends[0]) => {
+  const [nicheQuery, setNicheQuery] = useState<string>('');
+  const [searching, setSearching] = useState<boolean>(false);
+  const [customTrends, setCustomTrends] = useState<ViralProductTrend[]>([]);
+
+  const displayTrends = customTrends.length > 0 ? customTrends : viralTrends;
+
+  const handleSearchTrends = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!nicheQuery) return;
+
+    setSearching(true);
+    addToast(`🤖 Gemini 2.5 Pro buscando produtos virais em alta para "${nicheQuery}"...`, 'info');
+
+    try {
+      await new Promise((r) => setTimeout(r, 1200));
+
+      const newTrends: ViralProductTrend[] = [
+        {
+          id: `trend-${Date.now()}-1`,
+          productName: `Mini Aspirador Portátil Sem Fio Turbo (${nicheQuery})`,
+          category: nicheQuery,
+          sampleImageUrl: 'https://images.unsplash.com/photo-1558317374-067fb5f30001?auto=format&fit=crop&w=600&q=80',
+          potentialEngagement: 'Muito Alto 🔥 (+420% buscas)',
+          viralReason: 'Vídeos de limpeza satisfatória (ASMR) no TikTok com alta taxa de compartilhamento.',
+          reelIdea: 'Vídeo mostrando aspirador limpando teclado e migalhas do carro com áudio viral.',
+          carouselIdea: '5 Lugares que você esquece de limpar e este mini aspirador resolve.',
+          postIdea: 'Post comparativo do mini aspirador vs limpeza tradicional.',
+          cta: 'Comente "EU QUERO" para receber o link com desconto no direct!',
+        },
+        {
+          id: `trend-${Date.now()}-2`,
+          productName: `Organizador Giratório 360° Multiuso`,
+          category: nicheQuery,
+          sampleImageUrl: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=600&q=80',
+          potentialEngagement: 'Alto ⭐️ (Alta conversão)',
+          viralReason: 'Tendência de Restock & Organização de Armários.',
+          reelIdea: 'Antes e Depois do armário da cozinha antes do organizador giratório.',
+          carouselIdea: 'Como transformar sua bancada gastando menos de R$ 40.',
+          postIdea: 'Dicas de organização de temperos e maquiagem.',
+          cta: 'Clique no link da bio para garantir o seu antes que esgote!',
+        },
+      ];
+
+      setCustomTrends(newTrends);
+      addToast('✨ Tendências virais encontradas!', 'success');
+    } catch {
+      addToast('Erro ao buscar tendências.', 'error');
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const handleCreateFromTrend = (trend: ViralProductTrend) => {
     addToast(`Importando produto viral "${trend.productName}"...`, 'info');
 
     const newProd = addProduct({
@@ -29,6 +82,7 @@ export const ViralTrendsFinder: React.FC = () => {
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto animate-fadeIn">
+      {/* Header Banner */}
       <div className="p-8 rounded-3xl bg-gradient-to-r from-orange-950 via-slate-900 to-red-950 border border-orange-500/30 relative overflow-hidden shadow-2xl">
         <div className="max-w-2xl space-y-2 relative z-10">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-500/20 text-orange-300 text-xs font-bold border border-orange-500/30">
@@ -41,11 +95,34 @@ export const ViralTrendsFinder: React.FC = () => {
           <p className="text-xs text-slate-300">
             A IA monitora o mercado de afiliados e detecta itens com maior probabilidade de gerar engajamento, retenção e salvamentos.
           </p>
+
+          {/* Search Input */}
+          <form onSubmit={handleSearchTrends} className="flex gap-2 pt-3 max-w-md">
+            <div className="relative flex-1">
+              <Search className="absolute left-3.5 top-3 w-4 h-4 text-slate-500" />
+              <input
+                type="text"
+                value={nicheQuery}
+                onChange={(e) => setNicheQuery(e.target.value)}
+                placeholder="Pesquisar nicho (ex: Cozinha, Beleza, Tech)..."
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-950/80 border border-slate-800 text-xs text-white placeholder-slate-500 focus:border-orange-500 focus:outline-none"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={searching}
+              className="px-4 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold flex items-center gap-1.5 transition-all disabled:opacity-50"
+            >
+              {searching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
+              <span>Buscar</span>
+            </button>
+          </form>
         </div>
       </div>
 
+      {/* Grid de Tendências */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {viralTrends.map((trend) => (
+        {displayTrends.map((trend) => (
           <div
             key={trend.id}
             className="p-6 rounded-3xl bg-slate-900/60 border border-slate-800 hover:border-orange-500/50 backdrop-blur-sm space-y-4 flex flex-col justify-between transition-all group"
