@@ -2,20 +2,69 @@ import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { AIContentEngine } from '../../services/aiContentEngine';
 import { renderBrandedSlide } from '../../utils/canvasRenderer';
-import type { CarouselSlide } from '../../types';
+import type { Product, CarouselSlide } from '../../types';
 import { Layers, Sparkles, Wand2, UserPlus, Palette, Loader2 } from 'lucide-react';
+
+const sampleProduct: Product = {
+  id: 'sample-prod-1',
+  name: 'Mini Processador de Alimentos Elétrico sem Fio',
+  description: 'Processa alho, pimenta, legumes e temperos em 10 segundos com lâmina tripla de aço inox e carregamento USB-C.',
+  category: 'Cozinha & Praticidade',
+  price: 39.90,
+  originalPrice: 79.90,
+  affiliateLink: 'https://shopee.com.br/sample',
+  marketplace: 'Shopee',
+  commissionPercentage: 20.0,
+  photoUrl: 'https://images.unsplash.com/photo-1584269600464-37b1b58a9fe7?auto=format&fit=crop&w=600&q=80',
+  brand: 'Achadinhos Tech',
+  features: ['Carregamento USB-C', 'Lâmina Inox Tripla', 'Resistente à água'],
+  benefits: ['Tritura em 10 segundos', 'Sem sujeira na cozinha', 'Bateria dura 30 dias'],
+  viralScore: 9.8,
+  createdAt: new Date().toISOString(),
+};
 
 export const CarouselStudio: React.FC = () => {
   const { products, brandKit, createPost, setActiveTab, addToast } = useApp();
 
-  const [selectedProductId, setSelectedProductId] = useState<string>(products[0]?.id || '');
+  const displayProducts = products.length > 0 ? products : [sampleProduct];
+  const [selectedProductId, setSelectedProductId] = useState<string>(displayProducts[0]?.id || sampleProduct.id);
   const [topic, setTopic] = useState<string>('');
   const [generatedSlides, setGeneratedSlides] = useState<CarouselSlide[] | null>(null);
   const [renderedMediaUrls, setRenderedMediaUrls] = useState<string[]>([]);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [isRenderingBrand, setIsRenderingBrand] = useState<boolean>(false);
 
-  const selectedProduct = products.find((p) => p.id === selectedProductId) || products[0];
+  const selectedProduct = displayProducts.find((p) => p.id === selectedProductId) || displayProducts[0] || sampleProduct;
+
+  const handleRenderBrandKit = async (slidesObj?: CarouselSlide[]) => {
+    const targetSlides = slidesObj || generatedSlides;
+    if (!targetSlides || !selectedProduct) return;
+
+    setIsRenderingBrand(true);
+    addToast('🎨 Renderizando mídias visuais do Carrossel...', 'info');
+
+    try {
+      const urls: string[] = [];
+      for (let i = 0; i < targetSlides.length; i++) {
+        const slide = targetSlides[i];
+        const dataUrl = await renderBrandedSlide(selectedProduct, brandKit, {
+          title: slide.headline,
+          body: slide.text,
+          slideNumber: slide.slideNumber,
+          totalSlides: targetSlides.length,
+          aspectRatio: '1:1',
+        });
+        urls.push(dataUrl);
+      }
+      setRenderedMediaUrls(urls);
+      addToast('✨ Mídias do Carrossel renderizadas com seu Brand Kit!', 'success');
+    } catch (e) {
+      console.error('Erro ao renderizar Brand Kit:', e);
+      addToast('Erro ao aplicar o Brand Kit nas mídias.', 'error');
+    } finally {
+      setIsRenderingBrand(false);
+    }
+  };
 
   const handleGenerateCarousel = async () => {
     if (!selectedProduct) {
@@ -24,42 +73,16 @@ export const CarouselStudio: React.FC = () => {
     }
 
     setIsGenerating(true);
+    setRenderedMediaUrls([]);
     addToast('🤖 IA gerando slides do Carrossel...', 'info');
 
     const slides = await AIContentEngine.generateCarouselSlidesAsync(selectedProduct, topic || undefined);
     setGeneratedSlides(slides);
-    setRenderedMediaUrls([]);
     setIsGenerating(false);
     addToast('📚 Carrossel de alta conversão gerado!', 'success');
-  };
 
-  const handleRenderBrandKit = async () => {
-    if (!generatedSlides || !selectedProduct) return;
-
-    setIsRenderingBrand(true);
-    addToast('🎨 Renderizando mídias com o seu Brand Kit...', 'info');
-
-    try {
-      const urls: string[] = [];
-      for (let i = 0; i < generatedSlides.length; i++) {
-        const slide = generatedSlides[i];
-        const dataUrl = await renderBrandedSlide(selectedProduct, brandKit, {
-          title: slide.headline,
-          body: slide.text,
-          slideNumber: slide.slideNumber,
-          totalSlides: generatedSlides.length,
-          aspectRatio: '1:1',
-        });
-        urls.push(dataUrl);
-      }
-      setRenderedMediaUrls(urls);
-      addToast('✨ Mídias renderizadas com seu Brand Kit!', 'success');
-    } catch (e) {
-      console.error('Erro ao renderizar Brand Kit:', e);
-      addToast('Erro ao aplicar o Brand Kit nas mídias.', 'error');
-    } finally {
-      setIsRenderingBrand(false);
-    }
+    // Auto-renderiza as mídias com o Brand Kit
+    handleRenderBrandKit(slides);
   };
 
   const handleScheduleCarousel = async () => {
@@ -118,7 +141,7 @@ export const CarouselStudio: React.FC = () => {
               onChange={(e) => setSelectedProductId(e.target.value)}
               className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:border-indigo-500 focus:outline-none"
             >
-              {products.map((p) => (
+              {displayProducts.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name} (R${p.price.toFixed(2)})
                 </option>
@@ -161,7 +184,7 @@ export const CarouselStudio: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={handleRenderBrandKit}
+                    onClick={() => handleRenderBrandKit()}
                     disabled={isRenderingBrand}
                     className="px-3.5 py-2 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 text-xs font-bold border border-purple-500/30 flex items-center gap-1.5 transition-all disabled:opacity-50"
                   >

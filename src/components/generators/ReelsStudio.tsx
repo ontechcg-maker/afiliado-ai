@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { AIContentEngine } from '../../services/aiContentEngine';
+import { renderBrandedSlide } from '../../utils/canvasRenderer';
 import type { Product, ReelScript } from '../../types';
-import { Video, Sparkles, VolumeX, Volume2, Play, Music, Camera, Layers, Wand2 } from 'lucide-react';
+import { Video, Sparkles, VolumeX, Volume2, Play, Music, Camera, Layers, Wand2, Palette, Loader2 } from 'lucide-react';
 
 const sampleProduct: Product = {
   id: 'sample-prod-1',
@@ -23,7 +24,7 @@ const sampleProduct: Product = {
 };
 
 export const ReelsStudio: React.FC = () => {
-  const { products, createPost, setActiveTab, addToast } = useApp();
+  const { products, brandKit, createPost, setActiveTab, addToast } = useApp();
 
   const displayProducts = products.length > 0 ? products : [sampleProduct];
   const [selectedProductId, setSelectedProductId] = useState<string>(displayProducts[0]?.id || sampleProduct.id);
@@ -31,6 +32,9 @@ export const ReelsStudio: React.FC = () => {
   const [structureModel, setStructureModel] = useState<string>('Modelo 1 — Gancho + produto + CTA');
   const [narratorMode, setNarratorMode] = useState<'no_voice' | 'voiceover'>('no_voice');
   const [generatedScript, setGeneratedScript] = useState<ReelScript | null>(null);
+  const [renderedFrameUrls, setRenderedFrameUrls] = useState<string[]>([]);
+  const [isGenerating, setIsGenerating] = useState<boolean>(false);
+  const [isRenderingBrand, setIsRenderingBrand] = useState<boolean>(false);
 
   const selectedProduct = displayProducts.find((p) => p.id === selectedProductId) || displayProducts[0] || sampleProduct;
 
@@ -45,7 +49,35 @@ export const ReelsStudio: React.FC = () => {
 
   const durations = [6, 8, 10, 15, 30, 60];
 
-  const [isGenerating, setIsGenerating] = useState<boolean>(false);
+  const handleRenderReelBrandKit = async (scriptObj?: ReelScript) => {
+    const targetScript = scriptObj || generatedScript;
+    if (!targetScript || !selectedProduct) return;
+
+    setIsRenderingBrand(true);
+    addToast('🎨 Renderizando quadros visuais 9:16 do Reel...', 'info');
+
+    try {
+      const urls: string[] = [];
+      for (let i = 0; i < targetScript.scenes.length; i++) {
+        const scene = targetScript.scenes[i];
+        const dataUrl = await renderBrandedSlide(selectedProduct, brandKit, {
+          title: scene.onScreenText || targetScript.hook,
+          body: scene.visual,
+          slideNumber: scene.sceneNumber,
+          totalSlides: targetScript.scenes.length,
+          aspectRatio: '9:16',
+        });
+        urls.push(dataUrl);
+      }
+      setRenderedFrameUrls(urls);
+      addToast('✨ Mídias 9:16 do Reel renderizadas com sucesso!', 'success');
+    } catch (e) {
+      console.error('Erro ao renderizar mídias do Reel:', e);
+      addToast('Erro ao gerar mídias 9:16 do Reel.', 'error');
+    } finally {
+      setIsRenderingBrand(false);
+    }
+  };
 
   const handleGenerateScript = async () => {
     if (!selectedProduct) {
@@ -54,6 +86,7 @@ export const ReelsStudio: React.FC = () => {
     }
 
     setIsGenerating(true);
+    setRenderedFrameUrls([]);
     addToast('🤖 IA gerando roteiro de Reel em tempo real...', 'info');
 
     const script = await AIContentEngine.generateReelScriptAsync(
@@ -65,6 +98,9 @@ export const ReelsStudio: React.FC = () => {
     setGeneratedScript(script);
     setIsGenerating(false);
     addToast('🎬 Roteiro de Reel com alta retenção gerado com sucesso!', 'success');
+
+    // Auto-renderiza mídias 9:16
+    handleRenderReelBrandKit(script);
   };
 
   const handleScheduleReel = async () => {
@@ -80,8 +116,8 @@ export const ReelsStudio: React.FC = () => {
       strategyCategory: 'viral',
       status: 'scheduled',
       scheduledFor: new Date(Date.now() + 3600000 * 3).toISOString(),
-      mediaUrls: [selectedProduct.photoUrl],
-      coverUrl: selectedProduct.photoUrl,
+      mediaUrls: renderedFrameUrls.length > 0 ? renderedFrameUrls : [selectedProduct.photoUrl],
+      coverUrl: renderedFrameUrls[0] || selectedProduct.photoUrl,
       caption: `🔥 ${generatedScript.hook}\n\n${caption}`,
       hashtags,
       cta,
@@ -221,13 +257,28 @@ export const ReelsStudio: React.FC = () => {
                   </span>
                   <h3 className="text-lg font-black text-white mt-1">"{generatedScript.hook}"</h3>
                 </div>
-                <button
-                  onClick={handleScheduleReel}
-                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-emerald-500/20 transition-all"
-                >
-                  <Sparkles className="w-4 h-4" />
-                  <span>Agendar no Calendário</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleRenderReelBrandKit()}
+                    disabled={isRenderingBrand}
+                    className="px-3 py-2 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 text-xs font-bold border border-indigo-500/30 flex items-center gap-1.5 transition-all disabled:opacity-50"
+                  >
+                    {isRenderingBrand ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-indigo-400" />
+                    ) : (
+                      <Palette className="w-4 h-4 text-indigo-400" />
+                    )}
+                    <span>{isRenderingBrand ? 'Renderizando...' : '🎨 Renderizar Mídias 9:16'}</span>
+                  </button>
+
+                  <button
+                    onClick={handleScheduleReel}
+                    className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-emerald-500/20 transition-all"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    <span>Agendar no Calendário</span>
+                  </button>
+                </div>
               </div>
 
               <div className="p-3 rounded-2xl bg-indigo-950/40 border border-indigo-500/30 flex items-center gap-3">
@@ -241,7 +292,7 @@ export const ReelsStudio: React.FC = () => {
               <div className="space-y-3">
                 <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Sequência de Cenas (Storyboard)</h4>
 
-                {generatedScript.scenes.map((scene) => (
+                {generatedScript.scenes.map((scene, idx) => (
                   <div key={scene.sceneNumber} className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
                     <div className="flex items-center justify-between text-xs">
                       <span className="font-bold text-indigo-400 flex items-center gap-1.5">
@@ -251,6 +302,17 @@ export const ReelsStudio: React.FC = () => {
                         <Camera className="w-3 h-3" /> {scene.cameraMovement}
                       </span>
                     </div>
+
+                    {renderedFrameUrls[idx] && (
+                      <div className="my-2 rounded-2xl overflow-hidden border border-indigo-500/40 shadow-xl max-w-xs mx-auto">
+                        <img
+                          src={renderedFrameUrls[idx]}
+                          alt={`Cena ${scene.sceneNumber}`}
+                          className="w-full h-auto object-cover"
+                        />
+                      </div>
+                    )}
+
                     <p className="text-xs text-slate-200 leading-relaxed">
                       <strong>Visual:</strong> {scene.visual}
                     </p>

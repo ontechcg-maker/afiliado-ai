@@ -1,14 +1,17 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { AIContentEngine } from '../../services/aiContentEngine';
-import { Sparkles, Link as LinkIcon, Package, Wand2, ArrowRight, Loader2, Play, Layers } from 'lucide-react';
+import { Sparkles, Link as LinkIcon, Wand2, ArrowRight, Loader2, Play, Layers } from 'lucide-react';
+
+import { INITIAL_PRODUCTS } from '../../utils/mockData';
 
 export const AIContentStudio: React.FC = () => {
   const { products, generateAutoCampaignForProduct, addProduct, setActiveTab, addToast } = useApp();
 
+  const displayProducts = products.length > 0 ? products : INITIAL_PRODUCTS;
   const [productLink, setProductLink] = useState<string>('');
   const [isExtracting, setIsExtracting] = useState<boolean>(false);
-  const [selectedProductId, setSelectedProductId] = useState<string>(products[0]?.id || '');
+  const [selectedProductId, setSelectedProductId] = useState<string>(displayProducts[0]?.id || '');
 
   const handleExtractFromLink = async () => {
     if (!productLink.trim()) {
@@ -113,56 +116,43 @@ export const AIContentStudio: React.FC = () => {
           <p className="text-xs text-slate-400">A IA criará instantaneamente: 1 Reel + 1 Carrossel + 1 Post + 3 Stories</p>
         </div>
 
-        {products.length === 0 ? (
-          <div className="text-center py-8 space-y-3">
-            <Package className="w-12 h-12 text-slate-600 mx-auto" />
-            <p className="text-sm text-slate-400">Nenhum produto cadastrado ainda.</p>
-            <button
-              onClick={() => setActiveTab('products')}
-              className="px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold"
-            >
-              Cadastrar Primeiro Produto
-            </button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {products.map((prod) => {
-              const isSelected = selectedProductId === prod.id;
-              return (
-                <div
-                  key={prod.id}
-                  onClick={() => setSelectedProductId(prod.id)}
-                  className={`p-4 rounded-2xl border cursor-pointer transition-all flex flex-col justify-between space-y-3 ${
-                    isSelected
-                      ? 'bg-indigo-950/40 border-indigo-500 shadow-lg shadow-indigo-500/10'
-                      : 'bg-slate-950/60 border-slate-800 hover:border-slate-700'
-                  }`}
-                >
-                  <div className="space-y-3">
-                    <img src={prod.photoUrl} alt={prod.name} className="w-full h-32 object-cover rounded-xl border border-slate-800" />
-                    <div>
-                      <span className="text-[10px] font-bold text-emerald-400 px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20">
-                        {prod.marketplace} • R${prod.price.toFixed(2)}
-                      </span>
-                      <h4 className="text-xs font-semibold text-slate-100 line-clamp-2 mt-1.5">{prod.name}</h4>
-                    </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {displayProducts.map((prod) => {
+            const isSelected = selectedProductId === prod.id;
+            return (
+              <div
+                key={prod.id}
+                onClick={() => setSelectedProductId(prod.id)}
+                className={`p-4 rounded-2xl border cursor-pointer transition-all flex flex-col justify-between space-y-3 ${
+                  isSelected
+                    ? 'bg-indigo-950/40 border-indigo-500 shadow-lg shadow-indigo-500/10'
+                    : 'bg-slate-950/60 border-slate-800 hover:border-slate-700'
+                }`}
+              >
+                <div className="space-y-3">
+                  <img src={prod.photoUrl} alt={prod.name} className="w-full h-32 object-cover rounded-xl border border-slate-800" />
+                  <div>
+                    <span className="text-[10px] font-bold text-emerald-400 px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20">
+                      {prod.marketplace} • R${prod.price.toFixed(2)}
+                    </span>
+                    <h4 className="text-xs font-semibold text-slate-100 line-clamp-2 mt-1.5">{prod.name}</h4>
                   </div>
-
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      generateAutoCampaignForProduct(prod.id);
-                    }}
-                    className="w-full py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
-                  >
-                    <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                    <span>Criar Campanha</span>
-                  </button>
                 </div>
-              );
-            })}
-          </div>
-        )}
+
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    generateAutoCampaignForProduct(prod.id);
+                  }}
+                  className="w-full py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                  <span>Criar Campanha</span>
+                </button>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Atalhos Rápidos para Geradores Específicos */}

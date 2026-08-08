@@ -560,19 +560,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
   };
 
-  const generateAutoCampaignForProduct = (productId: string) => {
-    const product = products.find((p) => p.id === productId);
+  const generateAutoCampaignForProduct = async (productId: string) => {
+    const product = products.find((p) => p.id === productId) || INITIAL_PRODUCTS.find((p) => p.id === productId);
     if (!product) return;
 
     addToast(`Criando campanha completa 360° com IA para "${product.name}"...`, 'info');
     jobQueueService.addJob(`Criando Reel, Carrossel, Post e Stories para ${product.name}`);
 
-    const campaignPosts = AIContentEngine.generateCompleteCampaign(product, new Date());
+    const campaignPosts = await AIContentEngine.generateCompleteCampaignAsync(product, new Date());
     setPosts((prev) => [...campaignPosts, ...prev]);
 
-    addToast(`✨ Campanha criada! 4 conteúdos adicionados ao calendário.`, 'success');
-    confetti({ particleCount: 70, spread: 60 });
+    for (const post of campaignPosts) {
+      SupabaseService.savePost(post);
+    }
 
+    addToast(`🚀 Campanha 360° com 4 publicações criada no calendário!`, 'success');
+    confetti({ particleCount: 80, spread: 70, origin: { y: 0.5 } });
+    setActiveTab('calendar');
+    
     // Notificação WhatsApp
     evolutionService.sendTextMessage(
       `✨ *AFILIADO.AI*: Uma nova campanha 360° (Reel, Carrossel, Post e Stories) foi gerada pela IA Gemini 2.5 Pro para o produto *"${product.name}"*!`

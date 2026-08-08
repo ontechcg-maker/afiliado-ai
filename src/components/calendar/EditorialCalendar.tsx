@@ -191,6 +191,22 @@ export const EditorialCalendar: React.FC = () => {
               {getStatusBadge(selectedPost.status)}
             </div>
 
+            {selectedPost.mediaUrls && selectedPost.mediaUrls.length > 0 && (
+              <div className="space-y-1">
+                <span className="text-slate-400 font-bold block text-xs">Mídias Renderizadas ({selectedPost.mediaUrls.length}):</span>
+                <div className="flex gap-2 overflow-x-auto pb-2">
+                  {selectedPost.mediaUrls.map((url, idx) => (
+                    <img
+                      key={idx}
+                      src={url}
+                      alt={`Mídia ${idx + 1}`}
+                      className="h-32 w-auto object-cover rounded-xl border border-slate-800 shrink-0"
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="space-y-3 text-xs">
               <p className="text-slate-300">
                 <strong>Horário Agendado:</strong> {new Date(selectedPost.scheduledFor).toLocaleString('pt-BR')}

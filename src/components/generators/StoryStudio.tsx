@@ -1,14 +1,34 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
+import type { Product } from '../../types';
 import { Smartphone, Sparkles, Vote, HelpCircle, ShoppingBag, Flame } from 'lucide-react';
+
+const sampleProduct: Product = {
+  id: 'sample-prod-1',
+  name: 'Mini Processador de Alimentos Elétrico sem Fio',
+  description: 'Processa alho, pimenta, legumes e temperos em 10 segundos com lâmina tripla de aço inox e carregamento USB-C.',
+  category: 'Cozinha & Praticidade',
+  price: 39.90,
+  originalPrice: 79.90,
+  affiliateLink: 'https://shopee.com.br/sample',
+  marketplace: 'Shopee',
+  commissionPercentage: 20.0,
+  photoUrl: 'https://images.unsplash.com/photo-1584269600464-37b1b58a9fe7?auto=format&fit=crop&w=600&q=80',
+  brand: 'Achadinhos Tech',
+  features: ['Carregamento USB-C', 'Lâmina Inox Tripla', 'Resistente à água'],
+  benefits: ['Tritura em 10 segundos', 'Sem sujeira na cozinha', 'Bateria dura 30 dias'],
+  viralScore: 9.8,
+  createdAt: new Date().toISOString(),
+};
 
 export const StoryStudio: React.FC = () => {
   const { products, createPost, setActiveTab, addToast } = useApp();
 
-  const [selectedProductId, setSelectedProductId] = useState<string>(products[0]?.id || '');
+  const displayProducts = products.length > 0 ? products : [sampleProduct];
+  const [selectedProductId, setSelectedProductId] = useState<string>(displayProducts[0]?.id || sampleProduct.id);
   const [storyType, setStoryType] = useState<string>('Enquete');
 
-  const selectedProduct = products.find((p) => p.id === selectedProductId) || products[0];
+  const selectedProduct = displayProducts.find((p) => p.id === selectedProductId) || displayProducts[0] || sampleProduct;
 
   const storyTypes = [
     { id: 'Enquete', label: 'Story Enquete', desc: 'Aumenta engajamento com sticker de enquete (ex: Você compraria isso? [SIM] [COM CERTEZA])', icon: <Vote className="w-4 h-4 text-purple-400" /> },
@@ -70,7 +90,7 @@ export const StoryStudio: React.FC = () => {
               onChange={(e) => setSelectedProductId(e.target.value)}
               className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:border-indigo-500 focus:outline-none"
             >
-              {products.map((p) => (
+              {displayProducts.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name} (R${p.price.toFixed(2)})
                 </option>
