@@ -15,7 +15,7 @@ export interface ConnectionStatus {
 
 const defaultConfig: EvolutionConfig = {
   baseUrl: import.meta.env.VITE_EVOLUTION_API_URL || 'https://evo.ontechcg.cloud',
-  apiKey: import.meta.env.VITE_EVOLUTION_API_KEY || '',
+  apiKey: import.meta.env.VITE_EVOLUTION_API_KEY || '4sabtzhfjz2GQ91WPONFQvxcCtHDbucQ',
   instanceName: import.meta.env.VITE_EVOLUTION_INSTANCE || 'afiliado-ai',
   targetPhone: '',
   useSimulation: false,
