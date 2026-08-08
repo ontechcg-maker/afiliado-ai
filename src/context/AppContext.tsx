@@ -416,27 +416,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       targetPost.mediaUrls
     );
 
-    setPosts((prev) =>
-      prev.map((p) =>
-        p.id === id
-          ? {
-              ...p,
-              status: 'published',
-              publishedAt: new Date().toISOString(),
-              analytics: {
-                reach: Math.floor(Math.random() * 2000) + 500,
-                impressions: Math.floor(Math.random() * 3500) + 800,
-                likes: Math.floor(Math.random() * 300) + 40,
-                comments: Math.floor(Math.random() * 45) + 5,
-                shares: Math.floor(Math.random() * 80) + 12,
-                saves: Math.floor(Math.random() * 120) + 20,
-                clicks: Math.floor(Math.random() * 60) + 10,
-                followersGained: Math.floor(Math.random() * 15) + 2,
-              },
-            }
-          : p
-      )
-    );
+    const updatedPost: ContentPost = {
+      ...targetPost,
+      status: 'published',
+      publishedAt: new Date().toISOString(),
+      // Analytics zeradas — serão preenchidas pelos dados reais da Meta Insights API
+      analytics: {
+        reach: 0,
+        impressions: 0,
+        likes: 0,
+        comments: 0,
+        shares: 0,
+        saves: 0,
+        clicks: 0,
+        followersGained: 0,
+      },
+    };
+
+    setPosts((prev) => prev.map((p) => (p.id === id ? updatedPost : p)));
+    SupabaseService.savePost(updatedPost);
 
     addToast(`🟢 Publicado com sucesso no Instagram @${instagramAccount.username}!`, 'success');
     confetti({ particleCount: 80, spread: 70, origin: { y: 0.5 } });
