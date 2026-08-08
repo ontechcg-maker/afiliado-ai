@@ -1,5 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 import type { Product, ContentPost, ReelScript, CarouselSlide, UserStrategy } from '../types';
+import { scrapeProduct } from './scraperService';
 
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
 const modelName = import.meta.env.VITE_GEMINI_MODEL || 'gemini-2.5-flash';
@@ -437,28 +438,59 @@ Retorne estritamente um objeto JSON com:
     return posts;
   }
 
-  // 5. EXTRATOR DE LINK
+  // 5. EXTRATOR DE LINK REAL (COM SCRAPER + GEMINI 2.5 PRO)
   static async extractProductFromLink(link: string): Promise<Partial<Product>> {
-    await new Promise((resolve) => setTimeout(resolve, 1200));
+    // 1. Scraping de dados reais (Mercado Livre API, Microlink, OpenGraph)
+    const scraped = await scrapeProduct(link);
 
-    let marketplace: 'Shopee' | 'Amazon' | 'Hotmart' | 'Mercado Livre' = 'Shopee';
-    if (link.includes('amazon') || link.includes('amzn')) marketplace = 'Amazon';
-    else if (link.includes('hotmart')) marketplace = 'Hotmart';
-    else if (link.includes('mercadolivre')) marketplace = 'Mercado Livre';
+    const price = scraped.priceTo || 49.90;
+    const originalPrice = scraped.priceFrom || price * 1.5;
+
+    interface AIEnrichedProduct {
+      description?: string;
+      category?: string;
+      brand?: string;
+      features?: string[];
+      benefits?: string[];
+      viralScore?: number;
+    }
+
+    let aiEnriched: AIEnrichedProduct | null = null;
+
+    // 2. Enriquecimento via Gemini 2.5 Pro (se ativo)
+    if (aiClient && scraped.title) {
+      const prompt = `Analise o produto de afiliado extraído de uma loja online:
+Título do Produto: "${scraped.title}"
+Loja/Marketplace: "${scraped.platform}"
+Preço: R$${price}
+
+Retorne um objeto JSON com a enriquecimento do produto:
+{
+  "description": "uma descrição persuasiva e chamativa do produto em 2 parágrafos curtos",
+  "category": "categoria exata do produto (ex: Casa & Cozinha, Tecnologia, Moda, Beleza, Utilitários)",
+  "brand": "marca estimada ou provável do produto",
+  "features": ["3 características técnicas ou físicas principais"],
+  "benefits": ["3 benefícios de uso do produto para o consumidor"],
+  "viralScore": 9.2 (um número de 1.0 a 10.0 representando a virabilidade do produto)
+}`;
+
+      aiEnriched = await this.generateJSONWithGemini<AIEnrichedProduct>(prompt);
+    }
 
     return {
-      name: `Produto Extraído do Link (${marketplace})`,
-      photoUrl: 'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&w=600&q=80',
-      description: 'Item de alto engajamento extraído automaticamente via IA do link informado.',
-      category: 'Achadinhos Virais',
-      price: 59.90,
-      originalPrice: 109.90,
-      affiliateLink: link,
-      marketplace,
+      name: scraped.title || `Produto Extraído (${scraped.platform})`,
+      photoUrl: scraped.imageUrl || 'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&w=600&q=80',
+      description: aiEnriched?.description || 'Item de alto engajamento e alta conversão extraído automaticamente do link.',
+      category: aiEnriched?.category || 'Achadinhos Virais',
+      price,
+      originalPrice,
+      affiliateLink: scraped.affiliateLink || link,
+      marketplace: scraped.platform,
       commissionPercentage: 15.0,
-      features: ['Extração Automática de Preço', 'Foto HD'],
-      benefits: ['Economia de tempo no cadastro'],
-      viralScore: 9.1,
+      brand: aiEnriched?.brand || undefined,
+      features: aiEnriched?.features || ['Foto HD Extraída', 'Menor Preço Garantido'],
+      benefits: aiEnriched?.benefits || ['Economia de tempo', 'Facilidade de compra'],
+      viralScore: aiEnriched?.viralScore || 9.1,
     };
   }
 
