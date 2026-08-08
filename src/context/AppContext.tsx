@@ -236,7 +236,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
-      addToast(`Erro no login: ${error.message}`, 'error');
+      // Traduzir erros comuns do Supabase para português
+      let msg = error.message;
+      if (msg.includes('Invalid login credentials') || msg.includes('invalid_credentials')) {
+        msg = 'E-mail ou senha incorretos. Verifique e tente novamente.';
+      } else if (msg.includes('Email not confirmed')) {
+        msg = '⚠️ Confirme seu e-mail antes de fazer login. Verifique sua caixa de entrada.';
+      } else if (msg.includes('Too many requests')) {
+        msg = 'Muitas tentativas. Aguarde alguns minutos e tente novamente.';
+      }
+      addToast(msg, 'error');
       return false;
     }
 
@@ -260,24 +269,45 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       password,
       options: {
         data: { full_name: fullName },
+        emailRedirectTo: `${window.location.origin}`,
       },
     });
 
     if (error) {
-      addToast(`Erro ao criar conta: ${error.message}`, 'error');
+      let msg = error.message;
+      if (msg.includes('User already registered') || msg.includes('already been registered')) {
+        msg = '⚠️ Este e-mail já está cadastrado. Tente fazer login.';
+      } else if (msg.includes('Password should be at least')) {
+        msg = '⚠️ Senha muito curta. Use pelo menos 6 caracteres.';
+      } else if (msg.includes('Invalid email')) {
+        msg = '⚠️ E-mail inválido. Verifique o endereço digitado.';
+      }
+      addToast(msg, 'error');
       return false;
     }
 
     if (data.user) {
+      // Salvar perfil no banco
       await SupabaseService.saveProfile({
         id: data.user.id,
         email,
         fullName,
         planTier: 'pro',
       });
-      addToast('🎉 Conta criada com sucesso! Faça login para continuar.', 'success');
-      confetti({ particleCount: 80, spread: 70 });
-      return true;
+
+      // Se a sessão já foi criada (confirmação de e-mail desabilitada no Supabase)
+      if (data.session) {
+        addToast(`🎉 Bem-vindo ao AFILIADO.AI, ${fullName}! Conta criada com sucesso!`, 'success');
+        confetti({ particleCount: 100, spread: 80 });
+        return true;
+      } else {
+        // Confirmação de e-mail habilitada — avisar o usuário
+        addToast(
+          `📧 Conta criada! Acesse seu e-mail (${email}) e clique no link de confirmação para ativar sua conta.`,
+          'info'
+        );
+        return false; // Não fechar o modal — usuário precisa confirmar e-mail
+      }
     }
     return false;
   };
