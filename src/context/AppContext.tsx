@@ -208,6 +208,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, []);
 
+  // Processamento do Callback OAuth da Meta (Instagram Real)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const code = urlParams.get('code');
+      if (code) {
+        const cleanUrl = window.location.origin + window.location.pathname;
+        window.history.replaceState({}, document.title, cleanUrl);
+
+        addToast('🔑 Verificando autorização oficial com a Meta Graph API...', 'info');
+        metaApiService
+          .connectAccountViaCode(code)
+          .then((account) => {
+            setInstagramAccount(account);
+            if (userProfile.id && userProfile.id !== 'guest') {
+              SupabaseService.saveInstagramAccount(account, userProfile.id);
+            }
+            addToast(`🎉 Conta @${account.username} do Instagram verificada e conectada via Meta API Oficial!`, 'success');
+            confetti({ particleCount: 100, spread: 80 });
+          })
+          .catch((err) => {
+            addToast(err.message || 'Erro ao verificar conta do Instagram via Meta OAuth.', 'error');
+          });
+      }
+    }
+  }, [userProfile.id]);
+
   const loadUserData = (userId: string) => {
     SupabaseService.fetchProducts(userId).then((dbProducts) => {
       setProducts(dbProducts || []);
