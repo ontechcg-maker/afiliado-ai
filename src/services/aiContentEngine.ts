@@ -1,7 +1,82 @@
+import { GoogleGenAI } from '@google/genai';
 import type { Product, ContentPost, ReelScript, CarouselSlide, UserStrategy } from '../types';
 
+const apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
+const aiClient = apiKey && apiKey !== 'sua-chave-gemini-aqui' ? new GoogleGenAI({ apiKey }) : null;
+
 export class AIContentEngine {
-  // 1. GERADOR DE REELS AUTOMÁTICO
+  public static isGeminiConfigured(): boolean {
+    return Boolean(aiClient);
+  }
+
+  private static async generateJSONWithGemini<T>(prompt: string, systemInstruction?: string): Promise<T | null> {
+    if (!aiClient) return null;
+    try {
+      const response = await aiClient.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          systemInstruction: systemInstruction || 'Você é um assistente de IA especialista em marketing de afiliados, Instagram Reels e estratégias de conversão de alto impacto.',
+        },
+      });
+
+      if (response.text) {
+        return JSON.parse(response.text) as T;
+      }
+    } catch (error) {
+      console.warn('Erro na geração com Gemini (JSON), utilizando fallback estruturado:', error);
+    }
+    return null;
+  }
+
+  // 1. GERADOR DE REELS AUTOMÁTICO (COM SUPORTE A GEMINI REAL)
+  static async generateReelScriptAsync(
+    product: Product,
+    structureModel: string = 'Gancho + produto + CTA',
+    durationSeconds: number = 15,
+    mode: 'no_voice' | 'voiceover' = 'no_voice'
+  ): Promise<ReelScript> {
+    const prompt = `Crie um roteiro de Reel viral para o produto de afiliado:
+Nome: "${product.name}"
+Categoria: "${product.category}"
+Preço: R$${product.price} (Original: R$${product.originalPrice || product.price * 1.5})
+Plataforma: ${product.marketplace}
+Benefícios: ${product.benefits.join(', ')}
+Características: ${product.features.join(', ')}
+
+Duração: ${durationSeconds} segundos
+Modo de áudio: ${mode === 'no_voice' ? 'Sem narração (somente texto chamativo e áudio em alta)' : 'Narração por voz (Voiceover)'}
+Modelo de estrutura: ${structureModel}
+
+Retorne estritamente um objeto JSON com a seguinte estrutura:
+{
+  "hook": "frase de gancho super chamativa para os primeiros 2 segundos com emojis",
+  "durationSeconds": ${durationSeconds},
+  "structureModel": "${structureModel}",
+  "mode": "${mode}",
+  "suggestedMusic": "estilo ou nome de áudio viral recomendado",
+  "scenes": [
+    {
+      "sceneNumber": 1,
+      "visual": "descrição visual detalhada da cena 1",
+      "audioText": "texto falado (ou vazio se no_voice)",
+      "onScreenText": "texto chamativo na tela",
+      "cameraMovement": "movimento de câmera",
+      "transition": "tipo de transição",
+      "durationSeconds": 3
+    }
+  ]
+}`;
+
+    const geminiResult = await this.generateJSONWithGemini<ReelScript>(prompt);
+    if (geminiResult && geminiResult.scenes && geminiResult.scenes.length > 0) {
+      return geminiResult;
+    }
+
+    return this.generateReelScript(product, structureModel, durationSeconds, mode);
+  }
+
   static generateReelScript(
     product: Product,
     structureModel: string = 'Gancho + produto + CTA',
@@ -61,9 +136,38 @@ export class AIContentEngine {
     };
   }
 
-  // 2. GERADOR DE CARROSSÉIS
+  // 2. GERADOR DE CARROSSÉIS (COM SUPORTE A GEMINI REAL)
+  static async generateCarouselSlidesAsync(product: Product, topic?: string): Promise<CarouselSlide[]> {
+    const prompt = `Crie 5 slides para um carrossel do Instagram focado no produto de afiliado:
+Nome: "${product.name}"
+Categoria: "${product.category}"
+Preço: R$${product.price}
+Marketplace: ${product.marketplace}
+Tópico opcional: "${topic || ''}"
+
+Retorne estritamente um objeto JSON no seguinte formato:
+{
+  "slides": [
+    {
+      "slideNumber": 1,
+      "headline": "título chamativo da capa",
+      "text": "texto descritivo do slide",
+      "visualDescription": "orientação visual para a imagem de fundo",
+      "ctaText": "CTA ou frase final"
+    }
+  ]
+}`;
+
+    const geminiResult = await this.generateJSONWithGemini<{ slides: CarouselSlide[] }>(prompt);
+    if (geminiResult && geminiResult.slides && geminiResult.slides.length >= 3) {
+      return geminiResult.slides;
+    }
+
+    return this.generateCarouselSlides(product, topic);
+  }
+
   static generateCarouselSlides(product: Product, topic?: string): CarouselSlide[] {
-    const slides: CarouselSlide[] = [
+    return [
       {
         slideNumber: 1,
         headline: topic || `5 Motivos para ter o ${product.name} na sua casa`,
@@ -96,11 +200,39 @@ export class AIContentEngine {
         ctaText: 'Siga o perfil e receba o link exclusivo!',
       }
     ];
-    return slides;
   }
 
-  // 3. GERADOR DE LEGENDAS & HASHTAGS INTELIGENTES
-  static generateCaptionAndHashtags(product: Product, style: 'Viral' | 'Conversão' | 'Engajamento' = 'Conversão'): { caption: string; hashtags: string[]; cta: string } {
+  // 3. GERADOR DE LEGENDAS & HASHTAGS (COM SUPORTE A GEMINI REAL)
+  static async generateCaptionAndHashtagsAsync(
+    product: Product,
+    style: 'Viral' | 'Conversão' | 'Engajamento' = 'Conversão'
+  ): Promise<{ caption: string; hashtags: string[]; cta: string }> {
+    const prompt = `Escreva uma legenda altamente persuasiva para Instagram para o produto:
+Produto: "${product.name}"
+Categoria: "${product.category}"
+Preço: R$${product.price} (Original: R$${product.originalPrice || product.price * 1.5})
+Marketplace: ${product.marketplace}
+Estilo desejado: ${style}
+
+Retorne estritamente um objeto JSON com:
+{
+  "caption": "texto da legenda completo com quebras de linha \\n e emojis",
+  "hashtags": ["#achadinhos", "#ofertas", "#hashtag3", "#hashtag4"],
+  "cta": "chamada para ação final"
+}`;
+
+    const geminiResult = await this.generateJSONWithGemini<{ caption: string; hashtags: string[]; cta: string }>(prompt);
+    if (geminiResult && geminiResult.caption && geminiResult.hashtags) {
+      return geminiResult;
+    }
+
+    return this.generateCaptionAndHashtags(product, style);
+  }
+
+  static generateCaptionAndHashtags(
+    product: Product,
+    style: 'Viral' | 'Conversão' | 'Engajamento' = 'Conversão'
+  ): { caption: string; hashtags: string[]; cta: string } {
     const ctas = [
       `🔥 Quer o link com desconto? Comente "${product.name.split(' ')[0].toUpperCase()}" que te mando no direct!`,
       `📌 Salve esta dica para não esquecer quando for comprar na ${product.marketplace}!`,
@@ -134,10 +266,10 @@ export class AIContentEngine {
   }
 
   // 4. CRIADOR DE CAMPANHA COMPLETA 360°
-  static generateCompleteCampaign(product: Product, scheduledBaseDate: Date): ContentPost[] {
-    const { caption, hashtags, cta } = this.generateCaptionAndHashtags(product, 'Conversão');
-    const reelScript = this.generateReelScript(product, 'Gancho + produto + CTA', 15, 'no_voice');
-    const carouselSlides = this.generateCarouselSlides(product);
+  static async generateCompleteCampaignAsync(product: Product, scheduledBaseDate: Date): Promise<ContentPost[]> {
+    const { caption, hashtags, cta } = await this.generateCaptionAndHashtagsAsync(product, 'Conversão');
+    const reelScript = await this.generateReelScriptAsync(product, 'Gancho + produto + CTA', 15, 'no_voice');
+    const carouselSlides = await this.generateCarouselSlidesAsync(product);
 
     const posts: ContentPost[] = [];
 
@@ -221,6 +353,89 @@ export class AIContentEngine {
     return posts;
   }
 
+  static generateCompleteCampaign(product: Product, scheduledBaseDate: Date): ContentPost[] {
+    const { caption, hashtags, cta } = this.generateCaptionAndHashtags(product, 'Conversão');
+    const reelScript = this.generateReelScript(product, 'Gancho + produto + CTA', 15, 'no_voice');
+    const carouselSlides = this.generateCarouselSlides(product);
+
+    const posts: ContentPost[] = [];
+
+    posts.push({
+      id: `campaign-reel-${Date.now()}`,
+      productId: product.id,
+      productName: product.name,
+      title: `[Reel Viral] ${product.name}`,
+      type: 'reel',
+      strategyCategory: 'attraction',
+      status: 'scheduled',
+      scheduledFor: new Date(scheduledBaseDate.getTime() + 3600000 * 2).toISOString(),
+      mediaUrls: [product.photoUrl],
+      coverUrl: product.photoUrl,
+      caption: `🔥 ${reelScript.hook}\n\n${caption}`,
+      hashtags,
+      cta,
+      reelScript,
+      analytics: { reach: 0, impressions: 0, likes: 0, comments: 0, shares: 0, saves: 0, clicks: 0, followersGained: 0 },
+      createdAt: new Date().toISOString(),
+    });
+
+    posts.push({
+      id: `campaign-carousel-${Date.now()}`,
+      productId: product.id,
+      productName: product.name,
+      title: `[Carrossel Guia] 5 Motivos para comprar o ${product.name}`,
+      type: 'carousel',
+      strategyCategory: 'authority',
+      status: 'scheduled',
+      scheduledFor: new Date(scheduledBaseDate.getTime() + 86400000).toISOString(),
+      mediaUrls: [product.photoUrl],
+      coverUrl: product.photoUrl,
+      caption,
+      hashtags,
+      cta,
+      carouselSlides,
+      analytics: { reach: 0, impressions: 0, likes: 0, comments: 0, shares: 0, saves: 0, clicks: 0, followersGained: 0 },
+      createdAt: new Date().toISOString(),
+    });
+
+    posts.push({
+      id: `campaign-post-${Date.now()}`,
+      productId: product.id,
+      productName: product.name,
+      title: `[Oferta Direta] ${product.name} em Promoção`,
+      type: 'post',
+      strategyCategory: 'commercial',
+      status: 'scheduled',
+      scheduledFor: new Date(scheduledBaseDate.getTime() + 86400000 * 2).toISOString(),
+      mediaUrls: [product.photoUrl],
+      coverUrl: product.photoUrl,
+      caption: `💥 DESCONTO EXCLUSIVO NA ${product.marketplace.toUpperCase()}!\n\n${product.name} por R$${product.price.toFixed(2)}\n\n${cta}`,
+      hashtags,
+      cta,
+      analytics: { reach: 0, impressions: 0, likes: 0, comments: 0, shares: 0, saves: 0, clicks: 0, followersGained: 0 },
+      createdAt: new Date().toISOString(),
+    });
+
+    posts.push({
+      id: `campaign-story1-${Date.now()}`,
+      productId: product.id,
+      productName: product.name,
+      title: `[Story Enquete] Você tem esse problema?`,
+      type: 'story',
+      strategyCategory: 'viral',
+      status: 'scheduled',
+      scheduledFor: new Date(scheduledBaseDate.getTime() + 3600000 * 1).toISOString(),
+      mediaUrls: [product.photoUrl],
+      caption: `Você usaria isso na sua casa? 🤔\n[SIM, COM CERTEZA] [QUERO TESTAR]`,
+      hashtags: [],
+      cta: 'VOTE NA ENQUETE ACIMA!',
+      analytics: { reach: 0, impressions: 0, likes: 0, comments: 0, shares: 0, saves: 0, clicks: 0, followersGained: 0 },
+      createdAt: new Date().toISOString(),
+    });
+
+    return posts;
+  }
+
   // 5. EXTRATOR DE LINK
   static async extractProductFromLink(link: string): Promise<Partial<Product>> {
     await new Promise((resolve) => setTimeout(resolve, 1200));
@@ -246,7 +461,46 @@ export class AIContentEngine {
     };
   }
 
-  // 6. MOTOR CONSULTOR IA
+  // 6. MOTOR CONSULTOR IA (COM SUPORTE A GEMINI REAL)
+  static async generateConsultantResponseAsync(
+    userMessage: string,
+    strategy: UserStrategy,
+    productsCount: number
+  ): Promise<string> {
+    if (aiClient) {
+      const systemInstruction = `Você é um Consultor Estratégico de Social Media e Marketing de Afiliados de Nível Master.
+Seu objetivo é orientar o usuário a maximizar seguidores, engajamento e vendas no Instagram.
+Contexto do Usuário:
+- Nome do Perfil: "${strategy.profileName}" (@${strategy.username})
+- Nicho: "${strategy.niche}" (Subniche: "${strategy.subniche || 'Geral'}")
+- Público Alvo: "${strategy.targetAudience}"
+- Objetivos Principais: ${strategy.primaryObjectives.join(', ')}
+- Tom de Comunicação: ${strategy.communicationTone}
+- Estilo Visual: ${strategy.visualStyle}
+- Frequência de Postagem: ${strategy.postingFrequency} posts por dia
+- Horários Preferidos: ${strategy.preferredPostingHours.join(', ')}
+- Produtos Cadastrados: ${productsCount} produtos no banco
+
+Responda em formato markdown direto, amigável, altamente estratégico e prático. Use listas e destaques em negrito.`;
+
+      try {
+        const response = await aiClient.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: userMessage,
+          config: { systemInstruction },
+        });
+
+        if (response.text) {
+          return response.text;
+        }
+      } catch (error) {
+        console.warn('Erro ao chamar Gemini no Consultor, usando resposta estruturada:', error);
+      }
+    }
+
+    return this.generateConsultantResponse(userMessage, strategy, productsCount);
+  }
+
   static generateConsultantResponse(userMessage: string, strategy: UserStrategy, productsCount: number): string {
     const msg = userMessage.toLowerCase();
 

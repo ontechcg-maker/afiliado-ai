@@ -23,7 +23,7 @@ export const AIConsultantDrawer: React.FC = () => {
 
   const [inputText, setInputText] = useState<string>('');
 
-  const handleSendMessage = (textToSend?: string) => {
+  const handleSendMessage = async (textToSend?: string) => {
     const text = textToSend || inputText;
     if (!text.trim()) return;
 
@@ -37,18 +37,16 @@ export const AIConsultantDrawer: React.FC = () => {
     setMessages((prev) => [...prev, userMsg]);
     setInputText('');
 
-    setTimeout(() => {
-      const responseText = AIContentEngine.generateConsultantResponse(text, userStrategy, products.length);
+    const responseText = await AIContentEngine.generateConsultantResponseAsync(text, userStrategy, products.length);
 
-      const assistantMsg: AIConsultantMessage = {
-        id: `assistant-${Date.now()}`,
-        role: 'assistant',
-        content: responseText,
-        timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-      };
+    const assistantMsg: AIConsultantMessage = {
+      id: `assistant-${Date.now()}`,
+      role: 'assistant',
+      content: responseText,
+      timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+    };
 
-      setMessages((prev) => [...prev, assistantMsg]);
-    }, 800);
+    setMessages((prev) => [...prev, assistantMsg]);
   };
 
   return (

@@ -13,21 +13,27 @@ export const CarouselStudio: React.FC = () => {
 
   const selectedProduct = products.find((p) => p.id === selectedProductId) || products[0];
 
-  const handleGenerateCarousel = () => {
+  const [isGenerating, setIsGenerating] = useState<boolean>(false);
+
+  const handleGenerateCarousel = async () => {
     if (!selectedProduct) {
       addToast('Cadastre ao menos 1 produto no Banco!', 'warning');
       return;
     }
 
-    const slides = AIContentEngine.generateCarouselSlides(selectedProduct, topic || undefined);
+    setIsGenerating(true);
+    addToast('🤖 IA gerando slides do Carrossel...', 'info');
+
+    const slides = await AIContentEngine.generateCarouselSlidesAsync(selectedProduct, topic || undefined);
     setGeneratedSlides(slides);
+    setIsGenerating(false);
     addToast('📚 Carrossel de alta conversão gerado!', 'success');
   };
 
-  const handleScheduleCarousel = () => {
+  const handleScheduleCarousel = async () => {
     if (!generatedSlides || !selectedProduct) return;
 
-    const { caption, hashtags, cta } = AIContentEngine.generateCaptionAndHashtags(selectedProduct, 'Conversão');
+    const { caption, hashtags, cta } = await AIContentEngine.generateCaptionAndHashtagsAsync(selectedProduct, 'Conversão');
 
     createPost({
       productId: selectedProduct.id,
@@ -102,10 +108,11 @@ export const CarouselStudio: React.FC = () => {
           <div className="pt-2">
             <button
               onClick={handleGenerateCarousel}
-              className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-purple-600 via-indigo-600 to-pink-600 text-white text-xs font-bold shadow-lg shadow-purple-500/20 flex items-center justify-center gap-2 transition-all hover:opacity-95"
+              disabled={isGenerating}
+              className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-purple-600 via-indigo-600 to-pink-600 text-white text-xs font-bold shadow-lg shadow-purple-500/20 flex items-center justify-center gap-2 transition-all hover:opacity-95 disabled:opacity-50"
             >
-              <Wand2 className="w-4 h-4 text-amber-300" />
-              <span>Gerar Carrossel Completo</span>
+              <Wand2 className={`w-4 h-4 text-amber-300 ${isGenerating ? 'animate-spin' : ''}`} />
+              <span>{isGenerating ? 'Gerando Carrossel com IA...' : 'Gerar Carrossel Completo'}</span>
             </button>
           </div>
         </div>

@@ -26,26 +26,32 @@ export const ReelsStudio: React.FC = () => {
 
   const durations = [6, 8, 10, 15, 30, 60];
 
-  const handleGenerateScript = () => {
+  const [isGenerating, setIsGenerating] = useState<boolean>(false);
+
+  const handleGenerateScript = async () => {
     if (!selectedProduct) {
       addToast('Cadastre ao menos 1 produto primeiro!', 'warning');
       return;
     }
 
-    const script = AIContentEngine.generateReelScript(
+    setIsGenerating(true);
+    addToast('🤖 IA gerando roteiro de Reel em tempo real...', 'info');
+
+    const script = await AIContentEngine.generateReelScriptAsync(
       selectedProduct,
       structureModel,
       durationSeconds,
       narratorMode
     );
     setGeneratedScript(script);
+    setIsGenerating(false);
     addToast('🎬 Roteiro de Reel com alta retenção gerado com sucesso!', 'success');
   };
 
-  const handleScheduleReel = () => {
+  const handleScheduleReel = async () => {
     if (!generatedScript || !selectedProduct) return;
 
-    const { caption, hashtags, cta } = AIContentEngine.generateCaptionAndHashtags(selectedProduct, 'Viral');
+    const { caption, hashtags, cta } = await AIContentEngine.generateCaptionAndHashtagsAsync(selectedProduct, 'Viral');
 
     createPost({
       productId: selectedProduct.id,
@@ -178,10 +184,11 @@ export const ReelsStudio: React.FC = () => {
 
           <button
             onClick={handleGenerateScript}
-            className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white text-xs font-bold shadow-lg shadow-indigo-500/20 flex items-center justify-center gap-2 transition-all hover:opacity-95"
+            disabled={isGenerating}
+            className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white text-xs font-bold shadow-lg shadow-indigo-500/20 flex items-center justify-center gap-2 transition-all hover:opacity-95 disabled:opacity-50"
           >
-            <Wand2 className="w-4 h-4 text-amber-300" />
-            <span>Gerar Roteiro de Reel com IA</span>
+            <Wand2 className={`w-4 h-4 text-amber-300 ${isGenerating ? 'animate-spin' : ''}`} />
+            <span>{isGenerating ? 'Gerando com IA em Tempo Real...' : 'Gerar Roteiro de Reel com IA'}</span>
           </button>
         </div>
 
