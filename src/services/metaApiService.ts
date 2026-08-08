@@ -1,22 +1,56 @@
 import type { InstagramAccount, PostAnalytics } from '../types';
 
-const metaAppId = import.meta.env.VITE_META_APP_ID || '';
-const metaAppSecret = import.meta.env.VITE_META_APP_SECRET || '';
-const metaRedirectUri = import.meta.env.VITE_META_REDIRECT_URI || (typeof window !== 'undefined' ? `${window.location.origin}/auth/instagram/callback` : '');
+export interface MetaConfig {
+  appId: string;
+  appSecret: string;
+}
+
+const getStoredMetaConfig = (): MetaConfig => {
+  const envAppId = import.meta.env.VITE_META_APP_ID || '';
+  const envAppSecret = import.meta.env.VITE_META_APP_SECRET || '';
+  try {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('afiliado_ai_meta_config');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return {
+          appId: (parsed.appId || envAppId).trim(),
+          appSecret: (parsed.appSecret || envAppSecret).trim(),
+        };
+      }
+    }
+  } catch {}
+  return { appId: envAppId.trim(), appSecret: envAppSecret.trim() };
+};
 
 export class MetaApiService {
+  public getMetaConfig(): MetaConfig {
+    return getStoredMetaConfig();
+  }
+
+  public saveMetaConfig(config: Partial<MetaConfig>) {
+    const current = getStoredMetaConfig();
+    const updated = { ...current, ...config };
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('afiliado_ai_meta_config', JSON.stringify(updated));
+      }
+    } catch {}
+  }
+
   public isMetaConfigured(): boolean {
-    return Boolean(metaAppId && metaAppId !== 'seu-meta-app-id-aqui');
+    const { appId } = getStoredMetaConfig();
+    return Boolean(appId && appId !== 'seu-meta-app-id-aqui');
   }
 
   /**
    * Gera a URL de autorização oficial da Meta OAuth 2.0
    */
   getMetaAuthUrl(): string {
-    if (!this.isMetaConfigured()) {
-      return '#';
-    }
+    const { appId } = getStoredMetaConfig();
+    if (!appId) return '#';
 
+    const redirectUri = typeof window !== 'undefined' ? window.location.origin : '';
     const scopes = [
       'instagram_basic',
       'instagram_content_publish',
@@ -25,8 +59,8 @@ export class MetaApiService {
       'business_management',
     ].join(',');
 
-    return `https://www.facebook.com/v19.0/dialog/oauth?client_id=${metaAppId}&redirect_uri=${encodeURIComponent(
-      metaRedirectUri
+    return `https://www.facebook.com/v19.0/dialog/oauth?client_id=${encodeURIComponent(appId)}&redirect_uri=${encodeURIComponent(
+      redirectUri
     )}&scope=${encodeURIComponent(scopes)}&response_type=code`;
   }
 
@@ -34,30 +68,40 @@ export class MetaApiService {
    * Conecta a conta do Instagram Business via código de autorização OAuth
    */
   async connectAccountViaCode(code: string): Promise<InstagramAccount> {
-    if (!this.isMetaConfigured()) {
+    const { appId, appSecret } = getStoredMetaConfig();
+    const redirectUri = typeof window !== 'undefined' ? window.location.origin : '';
+
+    if (!appId) {
       return this.connectAccount();
     }
 
     try {
       // 1. Troca o código por um Short-Lived Access Token
       const tokenRes = await fetch(
-        `https://graph.facebook.com/v19.0/oauth/access_token?client_id=${metaAppId}&redirect_uri=${encodeURIComponent(
-          metaRedirectUri
-        )}&client_secret=${metaAppSecret}&code=${code}`
+        `https://graph.facebook.com/v19.0/oauth/access_token?client_id=${encodeURIComponent(appId)}&redirect_uri=${encodeURIComponent(
+          redirectUri
+        )}&client_secret=${encodeURIComponent(appSecret)}&code=${encodeURIComponent(code)}`
       );
       const tokenData = await tokenRes.json();
       const userAccessToken = tokenData.access_token;
 
       if (!userAccessToken) {
-        throw new Error('Falha ao obter token de acesso da Meta.');
+        throw new Error(tokenData.error?.message || 'Falha ao obter token de acesso da Meta.');
       }
 
       // 2. Troca por um Long-Lived Access Token (60 dias)
-      const longLivedRes = await fetch(
-        `https://graph.facebook.com/v19.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${metaAppId}&client_secret=${metaAppSecret}&fb_exchange_token=${userAccessToken}`
-      );
-      const longLivedData = await longLivedRes.json();
-      const accessToken = longLivedData.access_token || userAccessToken;
+      let accessToken = userAccessToken;
+      if (appSecret) {
+        const longLivedRes = await fetch(
+          `https://graph.facebook.com/v19.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${encodeURIComponent(
+            appId
+          )}&client_secret=${encodeURIComponent(appSecret)}&fb_exchange_token=${userAccessToken}`
+        );
+        const longLivedData = await longLivedRes.json();
+        if (longLivedData.access_token) {
+          accessToken = longLivedData.access_token;
+        }
+      }
 
       // 3. Busca Páginas do Facebook vinculadas
       const pagesRes = await fetch(

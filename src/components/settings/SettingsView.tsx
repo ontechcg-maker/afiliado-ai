@@ -1,10 +1,42 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
+import { metaApiService } from '../../services/metaApiService';
+import { evolutionService } from '../../services/evolutionService';
 import { InstagramIcon } from '../ui/Icons';
-import { Zap, CreditCard, Check } from 'lucide-react';
+import { Zap, CreditCard, Check, ShieldCheck, MessageCircle, Save } from 'lucide-react';
 
 export const SettingsView: React.FC = () => {
-  const { instagramAccount, connectInstagram, disconnectInstagram, autopilot, toggleAutopilot, updateAutopilotSettings, userProfile } = useApp();
+  const {
+    instagramAccount,
+    connectInstagram,
+    disconnectInstagram,
+    autopilot,
+    toggleAutopilot,
+    updateAutopilotSettings,
+    userProfile,
+    addToast,
+  } = useApp();
+
+  const currentMeta = metaApiService.getMetaConfig();
+  const [metaAppId, setMetaAppId] = useState(currentMeta.appId);
+  const [metaAppSecret, setMetaAppSecret] = useState(currentMeta.appSecret);
+
+  const currentEvo = evolutionService.getConfig();
+  const [evoUrl, setEvoUrl] = useState(currentEvo.baseUrl);
+  const [evoKey, setEvoKey] = useState(currentEvo.apiKey);
+  const [evoInstance, setEvoInstance] = useState(currentEvo.instanceName);
+
+  const handleSaveMeta = (e: React.FormEvent) => {
+    e.preventDefault();
+    metaApiService.saveMetaConfig({ appId: metaAppId.trim(), appSecret: metaAppSecret.trim() });
+    addToast('✅ Configurações da Meta API salvas com sucesso!', 'success');
+  };
+
+  const handleSaveEvo = (e: React.FormEvent) => {
+    e.preventDefault();
+    evolutionService.saveConfig({ baseUrl: evoUrl.trim(), apiKey: evoKey.trim(), instanceName: evoInstance.trim() });
+    addToast('✅ Configurações da Evolution API (WhatsApp) salvas!', 'success');
+  };
 
   const plans = [
     { name: 'GRATUITO', price: 'R$0', desc: 'Ideal para testes iniciais', features: ['5 artes geradas/mês', 'Instagram Conectado', 'Gerador de Legendas'] },
@@ -14,7 +46,8 @@ export const SettingsView: React.FC = () => {
   ];
 
   return (
-    <div className="p-6 space-y-8 max-w-5xl mx-auto animate-fadeIn">
+    <div className="p-6 space-y-8 max-w-5xl mx-auto animate-fadeIn pb-12">
+      {/* Bloco 1: Conexão Instagram */}
       <div className="p-6 rounded-3xl bg-slate-900/60 border border-slate-800 backdrop-blur-sm space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -51,13 +84,115 @@ export const SettingsView: React.FC = () => {
         ) : (
           <button
             onClick={() => connectInstagram()}
-            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-pink-600 to-indigo-600 text-white text-xs font-bold shadow"
+            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-pink-600 to-indigo-600 text-white text-xs font-bold shadow hover:opacity-95 transition-opacity"
           >
-            Conectar Instagram Oficial
+            Conectar Instagram / Meta OAuth
           </button>
         )}
       </div>
 
+      {/* Bloco 2: Configuração Direta das APIs (Meta App ID & WhatsApp) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Meta API Config */}
+        <form onSubmit={handleSaveMeta} className="p-6 rounded-3xl bg-slate-900/60 border border-slate-800 backdrop-blur-sm space-y-4">
+          <div className="flex items-center gap-2 text-indigo-400">
+            <ShieldCheck className="w-5 h-5" />
+            <h3 className="text-sm font-bold text-white">Credenciais da Meta Graph API</h3>
+          </div>
+          <p className="text-[11px] text-slate-400">
+            Insira o Meta App ID e Secret criados no portal Meta for Developers para habilitar a verificação oficial com Facebook Login.
+          </p>
+
+          <div className="space-y-3 pt-1">
+            <div>
+              <label className="block text-xs font-medium text-slate-300 mb-1">Meta App ID</label>
+              <input
+                type="text"
+                value={metaAppId}
+                onChange={(e) => setMetaAppId(e.target.value)}
+                placeholder="Ex: 123456789012345"
+                className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-600 focus:border-indigo-500 focus:outline-none transition-all font-mono"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-300 mb-1">Meta App Secret (Chave Secreta)</label>
+              <input
+                type="password"
+                value={metaAppSecret}
+                onChange={(e) => setMetaAppSecret(e.target.value)}
+                placeholder="Ex: a1b2c3d4e5f67890..."
+                className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-600 focus:border-indigo-500 focus:outline-none transition-all font-mono"
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow flex items-center justify-center gap-2 transition-all"
+            >
+              <Save className="w-3.5 h-3.5" />
+              <span>Salvar Meta App Credentials</span>
+            </button>
+          </div>
+        </form>
+
+        {/* WhatsApp / Evolution API Config */}
+        <form onSubmit={handleSaveEvo} className="p-6 rounded-3xl bg-slate-900/60 border border-slate-800 backdrop-blur-sm space-y-4">
+          <div className="flex items-center gap-2 text-emerald-400">
+            <MessageCircle className="w-5 h-5" />
+            <h3 className="text-sm font-bold text-white">Configuração do WhatsApp (Evolution API)</h3>
+          </div>
+          <p className="text-[11px] text-slate-400">
+            Configure a URL e chave da sua instância da Evolution API para enviar notificações automáticas de relatórios no WhatsApp.
+          </p>
+
+          <div className="space-y-3 pt-1">
+            <div>
+              <label className="block text-xs font-medium text-slate-300 mb-1">URL da Evolution API</label>
+              <input
+                type="text"
+                value={evoUrl}
+                onChange={(e) => setEvoUrl(e.target.value)}
+                placeholder="http://76.13.67.241:8080"
+                className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-600 focus:border-emerald-500 focus:outline-none transition-all font-mono"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-xs font-medium text-slate-300 mb-1">Instância</label>
+                <input
+                  type="text"
+                  value={evoInstance}
+                  onChange={(e) => setEvoInstance(e.target.value)}
+                  placeholder="afiliado-ai"
+                  className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-600 focus:border-emerald-500 focus:outline-none transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-300 mb-1">API Key</label>
+                <input
+                  type="password"
+                  value={evoKey}
+                  onChange={(e) => setEvoKey(e.target.value)}
+                  placeholder="Sua API Key"
+                  className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-600 focus:border-emerald-500 focus:outline-none transition-all font-mono"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow flex items-center justify-center gap-2 transition-all"
+            >
+              <Save className="w-3.5 h-3.5" />
+              <span>Salvar WhatsApp Credentials</span>
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* Bloco 3: Piloto Automático */}
       <div className="p-6 rounded-3xl bg-slate-900/60 border border-slate-800 backdrop-blur-sm space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -94,6 +229,7 @@ export const SettingsView: React.FC = () => {
         </div>
       </div>
 
+      {/* Bloco 4: Planos SaaS */}
       <div className="space-y-4">
         <div className="flex items-center gap-2">
           <CreditCard className="w-5 h-5 text-indigo-400" />
