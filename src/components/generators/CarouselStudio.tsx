@@ -1,19 +1,21 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { AIContentEngine } from '../../services/aiContentEngine';
+import { renderBrandedSlide } from '../../utils/canvasRenderer';
 import type { CarouselSlide } from '../../types';
-import { Layers, Sparkles, Wand2, UserPlus } from 'lucide-react';
+import { Layers, Sparkles, Wand2, UserPlus, Palette, Loader2 } from 'lucide-react';
 
 export const CarouselStudio: React.FC = () => {
-  const { products, createPost, setActiveTab, addToast } = useApp();
+  const { products, brandKit, createPost, setActiveTab, addToast } = useApp();
 
   const [selectedProductId, setSelectedProductId] = useState<string>(products[0]?.id || '');
   const [topic, setTopic] = useState<string>('');
   const [generatedSlides, setGeneratedSlides] = useState<CarouselSlide[] | null>(null);
+  const [renderedMediaUrls, setRenderedMediaUrls] = useState<string[]>([]);
+  const [isGenerating, setIsGenerating] = useState<boolean>(false);
+  const [isRenderingBrand, setIsRenderingBrand] = useState<boolean>(false);
 
   const selectedProduct = products.find((p) => p.id === selectedProductId) || products[0];
-
-  const [isGenerating, setIsGenerating] = useState<boolean>(false);
 
   const handleGenerateCarousel = async () => {
     if (!selectedProduct) {
@@ -26,8 +28,38 @@ export const CarouselStudio: React.FC = () => {
 
     const slides = await AIContentEngine.generateCarouselSlidesAsync(selectedProduct, topic || undefined);
     setGeneratedSlides(slides);
+    setRenderedMediaUrls([]);
     setIsGenerating(false);
     addToast('📚 Carrossel de alta conversão gerado!', 'success');
+  };
+
+  const handleRenderBrandKit = async () => {
+    if (!generatedSlides || !selectedProduct) return;
+
+    setIsRenderingBrand(true);
+    addToast('🎨 Renderizando mídias com o seu Brand Kit...', 'info');
+
+    try {
+      const urls: string[] = [];
+      for (let i = 0; i < generatedSlides.length; i++) {
+        const slide = generatedSlides[i];
+        const dataUrl = await renderBrandedSlide(selectedProduct, brandKit, {
+          title: slide.headline,
+          body: slide.text,
+          slideNumber: slide.slideNumber,
+          totalSlides: generatedSlides.length,
+          aspectRatio: '1:1',
+        });
+        urls.push(dataUrl);
+      }
+      setRenderedMediaUrls(urls);
+      addToast('✨ Mídias renderizadas com seu Brand Kit!', 'success');
+    } catch (e) {
+      console.error('Erro ao renderizar Brand Kit:', e);
+      addToast('Erro ao aplicar o Brand Kit nas mídias.', 'error');
+    } finally {
+      setIsRenderingBrand(false);
+    }
   };
 
   const handleScheduleCarousel = async () => {
@@ -43,8 +75,8 @@ export const CarouselStudio: React.FC = () => {
       strategyCategory: 'attraction',
       status: 'scheduled',
       scheduledFor: new Date(Date.now() + 3600000 * 5).toISOString(),
-      mediaUrls: [selectedProduct.photoUrl],
-      coverUrl: selectedProduct.photoUrl,
+      mediaUrls: renderedMediaUrls.length > 0 ? renderedMediaUrls : [selectedProduct.photoUrl],
+      coverUrl: renderedMediaUrls[0] || selectedProduct.photoUrl,
       caption,
       hashtags,
       cta,
@@ -127,20 +159,35 @@ export const CarouselStudio: React.FC = () => {
                   </span>
                   <h3 className="text-lg font-black text-white mt-1">{slidesHeadlineOrDefault()}</h3>
                 </div>
-                <button
-                  onClick={handleScheduleCarousel}
-                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-emerald-500/20 transition-all"
-                >
-                  <Sparkles className="w-4 h-4" />
-                  <span>Agendar Carrossel</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleRenderBrandKit}
+                    disabled={isRenderingBrand}
+                    className="px-3.5 py-2 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 text-xs font-bold border border-purple-500/30 flex items-center gap-1.5 transition-all disabled:opacity-50"
+                  >
+                    {isRenderingBrand ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-purple-400" />
+                    ) : (
+                      <Palette className="w-4 h-4 text-purple-400" />
+                    )}
+                    <span>{isRenderingBrand ? 'Renderizando...' : '🎨 Renderizar com Brand Kit'}</span>
+                  </button>
+
+                  <button
+                    onClick={handleScheduleCarousel}
+                    className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-emerald-500/20 transition-all"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    <span>Agendar Carrossel</span>
+                  </button>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {generatedSlides.map((slide, idx) => (
                   <div
                     key={slide.slideNumber}
-                    className={`p-4 rounded-2xl border space-y-2 relative ${
+                    className={`p-4 rounded-2xl border space-y-2 relative overflow-hidden ${
                       idx === 0
                         ? 'bg-gradient-to-br from-purple-950/80 to-slate-950 border-purple-500/50'
                         : idx === generatedSlides.length - 1
@@ -148,9 +195,20 @@ export const CarouselStudio: React.FC = () => {
                         : 'bg-slate-950 border-slate-800'
                     }`}
                   >
-                    <span className="absolute top-3 right-3 text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300">
+                    <span className="absolute top-3 right-3 z-10 text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-900/80 text-slate-300 backdrop-blur-md">
                       Slide #{slide.slideNumber}
                     </span>
+
+                    {/* Prévio Renderizado do Brand Kit (Se gerado) */}
+                    {renderedMediaUrls[idx] && (
+                      <div className="mb-3 rounded-xl overflow-hidden border border-purple-500/30 shadow-lg">
+                        <img
+                          src={renderedMediaUrls[idx]}
+                          alt={`Slide ${slide.slideNumber}`}
+                          className="w-full h-auto object-cover"
+                        />
+                      </div>
+                    )}
 
                     <h4 className="text-xs font-black text-white pr-12">{slide.headline}</h4>
                     <p className="text-xs text-slate-300 whitespace-pre-line leading-relaxed">{slide.text}</p>
