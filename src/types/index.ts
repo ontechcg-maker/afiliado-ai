@@ -18,7 +18,7 @@ export interface InstagramAccount {
   mediaCount: number;
   accountType: 'BUSINESS' | 'CREATOR';
   isConnected: boolean;
-  connectedAt: string;
+  connectedAt?: string;
 }
 
 export type StrategyObjective = 'gain_followers' | 'increase_engagement' | 'generate_sales' | 'generate_clicks' | 'build_authority';

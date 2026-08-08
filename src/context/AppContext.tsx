@@ -101,18 +101,34 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [userProfile, setUserProfile] = useState<Profile>({
-    id: 'user-01',
-    email: 'afiliado.pro@exemplo.com',
-    fullName: 'Alex Afiliado Pro',
-    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
-    planTier: 'pro',
+    id: 'guest',
+    email: '',
+    fullName: 'Visitante',
+    avatarUrl: '',
+    planTier: 'free',
   });
 
-  const [instagramAccount, setInstagramAccount] = useState<InstagramAccount>(INITIAL_INSTAGRAM_ACCOUNT);
+  const [instagramAccount, setInstagramAccount] = useState<InstagramAccount>(
+    isSupabaseConfigured()
+      ? {
+          id: '',
+          instagramUserId: '',
+          username: '',
+          name: '',
+          profilePictureUrl: '',
+          followersCount: 0,
+          mediaCount: 0,
+          accountType: 'BUSINESS',
+          isConnected: false,
+          connectedAt: undefined,
+        }
+      : INITIAL_INSTAGRAM_ACCOUNT
+  );
+
   const [userStrategy, setUserStrategy] = useState<UserStrategy>(INITIAL_USER_STRATEGY);
   const [brandKit, setBrandKit] = useState<BrandKit>(INITIAL_BRAND_KIT);
-  const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
-  const [posts, setPosts] = useState<ContentPost[]>(INITIAL_POSTS);
+  const [products, setProducts] = useState<Product[]>(isSupabaseConfigured() ? [] : INITIAL_PRODUCTS);
+  const [posts, setPosts] = useState<ContentPost[]>(isSupabaseConfigured() ? [] : INITIAL_POSTS);
   const [autopilot, setAutopilot] = useState<AutopilotSettings>(INITIAL_AUTOPILOT_SETTINGS);
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
   const [jobs, setJobs] = useState<JobItem[]>([]);
@@ -188,11 +204,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const loadUserData = (userId: string) => {
     SupabaseService.fetchProducts(userId).then((dbProducts) => {
-      if (dbProducts && dbProducts.length > 0) setProducts(dbProducts);
+      setProducts(dbProducts || []);
     });
 
     SupabaseService.fetchPosts(userId).then((dbPosts) => {
-      if (dbPosts && dbPosts.length > 0) setPosts(dbPosts);
+      setPosts(dbPosts || []);
     });
 
     SupabaseService.fetchStrategy(userId).then((dbStrategy) => {
