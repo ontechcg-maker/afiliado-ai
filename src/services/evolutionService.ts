@@ -68,8 +68,8 @@ export class EvolutionService {
   private formatQrCode(raw: string): string {
     if (!raw) return '';
     if (raw.startsWith('data:image')) return raw;
-    if (raw.startsWith('iVBORw0')) return `data:image/png;base64,${raw}`;
-    return raw;
+    const cleanBase64 = raw.replace(/^data:image\/[a-z]+;base64,/, '').trim();
+    return `data:image/png;base64,${cleanBase64}`;
   }
 
   public isConfigured(): boolean {
