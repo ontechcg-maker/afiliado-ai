@@ -3,19 +3,22 @@ export interface EvolutionConfig {
   apiKey: string;
   instanceName: string;
   targetPhone?: string;
+  useSimulation?: boolean;
 }
 
 export interface ConnectionStatus {
   connected: boolean;
-  qrCode?: string;
   number?: string;
+  errorDetail?: string;
+  isSimulated?: boolean;
 }
 
 const defaultConfig: EvolutionConfig = {
-  baseUrl: import.meta.env.VITE_EVOLUTION_API_URL || 'http://76.13.67.241:8080',
+  baseUrl: import.meta.env.VITE_EVOLUTION_API_URL || 'https://evo.ontechcg.cloud',
   apiKey: import.meta.env.VITE_EVOLUTION_API_KEY || '',
   instanceName: import.meta.env.VITE_EVOLUTION_INSTANCE || 'afiliado-ai',
   targetPhone: '',
+  useSimulation: false,
 };
 
 export class EvolutionService {
@@ -27,9 +30,11 @@ export class EvolutionService {
 
   private loadStoredConfig(): EvolutionConfig {
     try {
-      const stored = localStorage.getItem('afiliado_ai_whatsapp_config');
-      if (stored) {
-        return { ...defaultConfig, ...JSON.parse(stored) };
+      if (typeof window !== 'undefined') {
+        const stored = localStorage.getItem('afiliado_ai_whatsapp_config');
+        if (stored) {
+          return { ...defaultConfig, ...JSON.parse(stored) };
+        }
       }
     } catch {}
     return defaultConfig;
@@ -42,7 +47,9 @@ export class EvolutionService {
   public saveConfig(newConfig: Partial<EvolutionConfig>) {
     this.config = { ...this.config, ...newConfig };
     try {
-      localStorage.setItem('afiliado_ai_whatsapp_config', JSON.stringify(this.config));
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('afiliado_ai_whatsapp_config', JSON.stringify(this.config));
+      }
     } catch {}
   }
 
@@ -54,6 +61,7 @@ export class EvolutionService {
       apiKey: (this.config.apiKey || '').trim(),
       instanceName: (this.config.instanceName || '').trim() || 'afiliado-ai',
       targetPhone: (this.config.targetPhone || '').trim(),
+      useSimulation: Boolean(this.config.useSimulation),
     };
   }
 
@@ -65,15 +73,24 @@ export class EvolutionService {
   }
 
   public isConfigured(): boolean {
-    const { baseUrl, apiKey } = this.cleanConfig();
-    return Boolean(baseUrl && apiKey);
+    const { baseUrl, apiKey, useSimulation } = this.cleanConfig();
+    return useSimulation || Boolean(baseUrl && apiKey);
+  }
+
+  /**
+   * Gerador de QR Code de Demonstração / Simulação
+   */
+  private getMockQRCode(): string {
+    // QR code de demonstração em SVG/Data URI
+    return 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200"><rect width="200" height="200" fill="white"/><g fill="black"><rect x="20" y="20" width="50" height="50"/><rect x="30" y="30" width="30" height="30" fill="white"/><rect x="40" y="40" width="10" height="10"/><rect x="130" y="20" width="50" height="50"/><rect x="140" y="30" width="30" height="30" fill="white"/><rect x="150" y="40" width="10" height="10"/><rect x="20" y="130" width="50" height="50"/><rect x="30" y="140" width="30" height="30" fill="white"/><rect x="40" y="150" width="10" height="10"/><rect x="80" y="20" width="20" height="20"/><rect x="100" y="50" width="10" height="40"/><rect x="80" y="100" width="40" height="20"/><rect x="140" y="100" width="40" height="30"/><rect x="90" y="140" width="30" height="40"/><rect x="130" y="150" width="40" height="30"/></g></svg>';
   }
 
   /**
    * Cria a instância na Evolution API caso não exista
    */
   async createInstance(): Promise<string> {
-    const { baseUrl, apiKey, instanceName } = this.cleanConfig();
+    const { baseUrl, apiKey, instanceName, useSimulation } = this.cleanConfig();
+    if (useSimulation) return this.getMockQRCode();
     if (!baseUrl || !apiKey) return '';
 
     try {
@@ -108,8 +125,22 @@ export class EvolutionService {
    * Verifica o status de conexão da instância com o WhatsApp
    */
   async getConnectionStatus(): Promise<ConnectionStatus> {
-    const { baseUrl, apiKey, instanceName } = this.cleanConfig();
-    if (!baseUrl || !apiKey) return { connected: false };
+    const { baseUrl, apiKey, instanceName, useSimulation } = this.cleanConfig();
+
+    if (useSimulation) {
+      return {
+        connected: true,
+        number: '+55 (83) 98206-3080 [Simulado]',
+        isSimulated: true,
+      };
+    }
+
+    if (!baseUrl || !apiKey) {
+      return {
+        connected: false,
+        errorDetail: 'Preencha a URL da Evolution API e a API Key Global.',
+      };
+    }
 
     try {
       const res = await fetch(`${baseUrl}/instance/connectionState/${instanceName}`, {
@@ -117,11 +148,26 @@ export class EvolutionService {
       });
 
       if (!res.ok) {
-        // Se retornar 404, tenta criar a instância
+        if (res.status === 502 || res.status === 503) {
+          return {
+            connected: false,
+            errorDetail: `O servidor da Evolution API (${baseUrl}) retornou erro ${res.status} Bad Gateway. O serviço na VPS está fora do ar ou com a porta incorreta.`,
+          };
+        }
+        if (res.status === 401 || res.status === 403) {
+          return {
+            connected: false,
+            errorDetail: 'API Key incorreta. Verifique sua chave nas configurações da Evolution API.',
+          };
+        }
         if (res.status === 404) {
           await this.createInstance();
+          return {
+            connected: false,
+            errorDetail: 'Instância não encontrada. Tentando criar automaticamente...',
+          };
         }
-        return { connected: false };
+        return { connected: false, errorDetail: `Erro HTTP ${res.status} ao conectar.` };
       }
 
       const data = await res.json();
@@ -132,7 +178,10 @@ export class EvolutionService {
         number: data?.instance?.profileName || data?.profileName,
       };
     } catch {
-      return { connected: false };
+      return {
+        connected: false,
+        errorDetail: `Não foi possível conectar ao servidor (${baseUrl}). Verifique se o endereço da API está acessível.`,
+      };
     }
   }
 
@@ -140,7 +189,12 @@ export class EvolutionService {
    * Obtém o QR Code para pareamento
    */
   async getQRCode(): Promise<string> {
-    const { baseUrl, apiKey, instanceName } = this.cleanConfig();
+    const { baseUrl, apiKey, instanceName, useSimulation } = this.cleanConfig();
+
+    if (useSimulation) {
+      return this.getMockQRCode();
+    }
+
     if (!baseUrl || !apiKey) return '';
 
     try {
@@ -161,7 +215,6 @@ export class EvolutionService {
         if (raw) return this.formatQrCode(raw);
       }
 
-      // Se a requisição GET falhar ou não retornar QR Code, tenta criar/obter via POST /instance/create
       return await this.createInstance();
     } catch {
       return await this.createInstance();
@@ -169,17 +222,18 @@ export class EvolutionService {
   }
 
   /**
-   * Envia uma mensagem de texto simples para um número ou para o número configurado
+   * Envia uma mensagem de texto simples para um número
    */
   async sendTextMessage(text: string, phone?: string): Promise<boolean> {
-    const { baseUrl, apiKey, instanceName, targetPhone } = this.cleanConfig();
+    const { baseUrl, apiKey, instanceName, targetPhone, useSimulation } = this.cleanConfig();
     const recipient = phone || targetPhone;
 
-    if (!baseUrl || !apiKey || !recipient) {
-      console.warn('Configuração de WhatsApp incompleta (URL, API Key ou Telefone faltando).');
-      return false;
+    if (useSimulation) {
+      console.log('📱 [Modo Simulado] Mensagem enviada para WhatsApp:', recipient, text);
+      return true;
     }
 
+    if (!baseUrl || !apiKey || !recipient) return false;
     const cleanNumber = recipient.replace(/\D/g, '');
 
     try {
@@ -192,10 +246,7 @@ export class EvolutionService {
         body: JSON.stringify({
           number: cleanNumber,
           text,
-          options: {
-            delay: 1200,
-            presence: 'composing',
-          },
+          options: { delay: 1200, presence: 'composing' },
         }),
       });
 
@@ -215,8 +266,13 @@ export class EvolutionService {
     mediaType: 'image' | 'video' = 'image',
     phone?: string
   ): Promise<boolean> {
-    const { baseUrl, apiKey, instanceName, targetPhone } = this.cleanConfig();
+    const { baseUrl, apiKey, instanceName, targetPhone, useSimulation } = this.cleanConfig();
     const recipient = phone || targetPhone;
+
+    if (useSimulation) {
+      console.log('📱 [Modo Simulado] Mídia enviada para WhatsApp:', recipient, mediaUrl, caption);
+      return true;
+    }
 
     if (!baseUrl || !apiKey || !recipient) return false;
     const cleanNumber = recipient.replace(/\D/g, '');

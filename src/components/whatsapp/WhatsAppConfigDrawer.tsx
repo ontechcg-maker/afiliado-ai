@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { evolutionService, type EvolutionConfig } from '../../services/evolutionService';
+import { evolutionService, type EvolutionConfig, type ConnectionStatus } from '../../services/evolutionService';
 import { X, QrCode, PhoneCall, RefreshCw, Send, CheckCircle2, AlertCircle, ShieldCheck } from 'lucide-react';
 
 interface WhatsAppConfigDrawerProps {
@@ -12,7 +12,7 @@ export const WhatsAppConfigDrawer: React.FC<WhatsAppConfigDrawerProps> = ({ isOp
   const { addToast } = useApp();
 
   const [config, setConfig] = useState<EvolutionConfig>(evolutionService.getConfig());
-  const [status, setStatus] = useState<{ connected: boolean; number?: string }>({ connected: false });
+  const [status, setStatus] = useState<ConnectionStatus>({ connected: false });
   const [qrCode, setQrCode] = useState<string>('');
   const [loadingStatus, setLoadingStatus] = useState<boolean>(false);
   const [testingMsg, setTestingMsg] = useState<boolean>(false);
@@ -35,7 +35,7 @@ export const WhatsAppConfigDrawer: React.FC<WhatsAppConfigDrawerProps> = ({ isOp
         setQrCode('');
       }
     } catch {
-      setStatus({ connected: false });
+      setStatus({ connected: false, errorDetail: 'Erro ao verificar conexão com o servidor.' });
     } finally {
       setLoadingStatus(false);
     }
@@ -101,7 +101,9 @@ export const WhatsAppConfigDrawer: React.FC<WhatsAppConfigDrawerProps> = ({ isOp
                 {status.connected ? (
                   <>
                     <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                    <span className="text-xs font-bold text-emerald-400">Instância Conectada ao WhatsApp</span>
+                    <span className="text-xs font-bold text-emerald-400">
+                      {status.isSimulated ? '🟢 Instância Simulado/Ativa' : '🟢 Instância Conectada ao WhatsApp'}
+                    </span>
                   </>
                 ) : (
                   <>
@@ -123,6 +125,16 @@ export const WhatsAppConfigDrawer: React.FC<WhatsAppConfigDrawerProps> = ({ isOp
 
             {status.connected && status.number && (
               <p className="text-xs text-slate-400">Número pareado: <span className="text-white font-medium">{status.number}</span></p>
+            )}
+
+            {status.errorDetail && (
+              <div className="p-3 rounded-xl bg-rose-950/30 border border-rose-800/40 text-[11px] text-rose-300 space-y-1">
+                <p className="font-bold flex items-center gap-1.5 text-rose-400">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  <span>Diagnóstico de Conexão:</span>
+                </p>
+                <p className="text-slate-300 leading-relaxed">{status.errorDetail}</p>
+              </div>
             )}
           </div>
 
@@ -152,7 +164,7 @@ export const WhatsAppConfigDrawer: React.FC<WhatsAppConfigDrawerProps> = ({ isOp
                     setQrCode(qr);
                     setLoadingStatus(false);
                     if (!qr) {
-                      addToast('Não foi possível conectar com a Evolution API. Verifique se a URL e a API Key estão corretas.', 'error');
+                      addToast('Servidor da Evolution API retornou 502 Bad Gateway ou não respondeu.', 'error');
                     } else {
                       addToast('QR Code gerado com sucesso! Escaneie com seu WhatsApp.', 'success');
                     }
@@ -169,13 +181,31 @@ export const WhatsAppConfigDrawer: React.FC<WhatsAppConfigDrawerProps> = ({ isOp
 
           {/* Form Config */}
           <form onSubmit={handleSave} className="space-y-4">
+            <div className="p-3.5 rounded-2xl bg-indigo-950/30 border border-indigo-800/40 flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-indigo-300">Modo de Simulação / Teste</p>
+                <p className="text-[11px] text-slate-400">Ative para testar QR Code e alertas sem depender do servidor</p>
+              </div>
+              <input
+                type="checkbox"
+                checked={Boolean(config.useSimulation)}
+                onChange={(e) => {
+                  const updated = { ...config, useSimulation: e.target.checked };
+                  setConfig(updated);
+                  evolutionService.saveConfig(updated);
+                  checkStatus();
+                }}
+                className="w-4 h-4 accent-indigo-600 rounded cursor-pointer"
+              />
+            </div>
+
             <div>
               <label className="block text-xs font-medium text-slate-300 mb-1">URL da Evolution API</label>
               <input
                 type="text"
                 value={config.baseUrl}
                 onChange={(e) => setConfig({ ...config, baseUrl: e.target.value })}
-                placeholder="http://76.13.67.241:8080"
+                placeholder="https://evo.ontechcg.cloud"
                 className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none transition-all"
               />
             </div>
