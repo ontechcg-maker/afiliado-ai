@@ -2,6 +2,7 @@ import { GoogleGenAI } from '@google/genai';
 import type { Product, ContentPost, ReelScript, CarouselSlide, UserStrategy } from '../types';
 
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
+const modelName = import.meta.env.VITE_GEMINI_MODEL || 'gemini-2.5-flash';
 const aiClient = apiKey && apiKey !== 'sua-chave-gemini-aqui' ? new GoogleGenAI({ apiKey }) : null;
 
 export class AIContentEngine {
@@ -13,7 +14,7 @@ export class AIContentEngine {
     if (!aiClient) return null;
     try {
       const response = await aiClient.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: modelName,
         contents: prompt,
         config: {
           responseMimeType: 'application/json',
@@ -485,7 +486,7 @@ Responda em formato markdown direto, amigável, altamente estratégico e prátic
 
       try {
         const response = await aiClient.models.generateContent({
-          model: 'gemini-2.5-flash',
+          model: modelName,
           contents: userMessage,
           config: { systemInstruction },
         });
