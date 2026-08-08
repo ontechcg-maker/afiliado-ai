@@ -1,13 +1,13 @@
 import type { Product, ContentPost, UserStrategy, BrandKit, InstagramAccount, AutopilotSettings, ViralProductTrend } from '../types';
 
 export const INITIAL_INSTAGRAM_ACCOUNT: InstagramAccount = {
-  id: 'ig-101',
-  instagramUserId: '1784140123456789',
-  username: 'achadinhos.top.afiliado',
-  name: 'Achadinhos Incríveis ✨',
+  id: 'ig-etomepromo',
+  instagramUserId: '17841409988776655',
+  username: 'etomepromo',
+  name: 'etomepromo',
   profilePictureUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
-  followersCount: 14820,
-  mediaCount: 184,
+  followersCount: 1,
+  mediaCount: 1,
   accountType: 'BUSINESS',
   isConnected: true,
   connectedAt: new Date().toISOString(),

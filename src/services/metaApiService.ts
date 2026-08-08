@@ -146,8 +146,13 @@ export class MetaApiService {
   /**
    * Conexão de conta do Instagram do Usuário
    */
-  async connectAccount(customUsername?: string, customName?: string): Promise<InstagramAccount> {
-    await new Promise((resolve) => setTimeout(resolve, 800));
+  async connectAccount(
+    customUsername?: string,
+    customName?: string,
+    customFollowers?: number,
+    customMedia?: number
+  ): Promise<InstagramAccount> {
+    await new Promise((resolve) => setTimeout(resolve, 500));
 
     const cleanUsername = customUsername
       ? customUsername.replace(/^@/, '').trim()
@@ -159,8 +164,8 @@ export class MetaApiService {
       username: cleanUsername,
       name: customName || `@${cleanUsername}`,
       profilePictureUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
-      followersCount: 1480,
-      mediaCount: 42,
+      followersCount: typeof customFollowers === 'number' ? customFollowers : 1,
+      mediaCount: typeof customMedia === 'number' ? customMedia : 0,
       accountType: 'BUSINESS',
       isConnected: true,
       connectedAt: new Date().toISOString(),

@@ -60,7 +60,7 @@ interface AppContextType {
   setActiveTab: (tab: ActiveTab) => void;
   setIsOnboardingCompleted: (status: boolean) => void;
   connectInstagram: () => Promise<void>;
-  connectInstagramCustom: (username: string, name?: string) => Promise<void>;
+  connectInstagramCustom: (username: string, name?: string, followersCount?: number, mediaCount?: number) => Promise<void>;
   disconnectInstagram: () => Promise<void>;
   openInstagramModal: () => void;
   closeInstagramModal: () => void;
@@ -384,14 +384,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setIsInstagramModalOpen(true);
   };
 
-  const connectInstagramCustom = async (username: string, name?: string) => {
+  const connectInstagramCustom = async (
+    username: string,
+    name?: string,
+    followersCount?: number,
+    mediaCount?: number
+  ) => {
     try {
-      const account = await metaApiService.connectAccount(username, name);
+      const account = await metaApiService.connectAccount(username, name, followersCount, mediaCount);
       setInstagramAccount(account);
       if (userProfile.id && userProfile.id !== 'guest') {
         await SupabaseService.saveInstagramAccount(account, userProfile.id);
       }
-      addToast(`🟢 Instagram @${account.username} conectado com sucesso!`, 'success');
+      addToast(`🟢 Instagram @${account.username} conectado (${account.followersCount.toLocaleString('pt-BR')} seguidores)!`, 'success');
       confetti({ particleCount: 60, spread: 60, origin: { y: 0.6 } });
     } catch {
       addToast('Erro ao conectar conta do Instagram', 'error');

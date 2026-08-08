@@ -22,6 +22,9 @@ export const InstagramConnectModal: React.FC<InstagramConnectModalProps> = ({ is
   const [inputAppId, setInputAppId] = useState(currentMetaConfig.appId);
   const [inputAppSecret, setInputAppSecret] = useState(currentMetaConfig.appSecret);
 
+  const [followersCountInput, setFollowersCountInput] = useState<number>(1);
+  const [mediaCountInput, setMediaCountInput] = useState<number>(1);
+
   if (!isOpen) return null;
 
   const isMetaConfigured = metaApiService.isMetaConfigured();
@@ -60,7 +63,12 @@ export const InstagramConnectModal: React.FC<InstagramConnectModalProps> = ({ is
     setLoading(true);
 
     try {
-      await connectInstagramCustom(cleanUsername, name.trim() || `@${cleanUsername}`);
+      await connectInstagramCustom(
+        cleanUsername,
+        name.trim() || `@${cleanUsername}`,
+        followersCountInput,
+        mediaCountInput
+      );
       onClose();
       setUsername('');
       setName('');
@@ -261,6 +269,35 @@ export const InstagramConnectModal: React.FC<InstagramConnectModalProps> = ({ is
                 placeholder="Ex: Heverton Salvador | Achadinhos"
                 className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-500 focus:border-pink-500 focus:outline-none transition-all"
               />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-300 mb-1">
+                  Seguidores Reais
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={followersCountInput}
+                  onChange={(e) => setFollowersCountInput(Number(e.target.value))}
+                  placeholder="1"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-500 focus:border-pink-500 focus:outline-none transition-all font-mono"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-300 mb-1">
+                  Publicações (Posts)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={mediaCountInput}
+                  onChange={(e) => setMediaCountInput(Number(e.target.value))}
+                  placeholder="1"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-500 focus:border-pink-500 focus:outline-none transition-all font-mono"
+                />
+              </div>
             </div>
 
             <button
