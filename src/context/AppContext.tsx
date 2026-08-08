@@ -257,7 +257,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!targetPost) return;
 
     addToast(`Publicando "${targetPost.title}" no Instagram...`, 'info');
-    await metaApiService.publishMediaToInstagram(targetPost.id, targetPost.mediaUrls[0], targetPost.caption);
+    await metaApiService.publishMediaToInstagram(
+      targetPost.id,
+      targetPost.mediaUrls[0] || targetPost.coverUrl || '',
+      targetPost.caption,
+      targetPost.type,
+      targetPost.mediaUrls
+    );
 
     setPosts((prev) =>
       prev.map((p) =>
