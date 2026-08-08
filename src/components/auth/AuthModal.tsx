@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Lock, Mail, User as UserIcon, Sparkles, X, Loader2, ArrowRight } from 'lucide-react';
+import { Lock, Mail, User as UserIcon, Sparkles, X, Loader2, ArrowRight, Eye, EyeOff } from 'lucide-react';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -13,7 +13,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   if (!isOpen) return null;
@@ -25,6 +28,21 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
       return;
     }
 
+    if (mode === 'signup') {
+      if (!fullName.trim()) {
+        addToast('Informe seu nome completo para o cadastro.', 'warning');
+        return;
+      }
+      if (password !== confirmPassword) {
+        addToast('⚠️ As senhas não coincidem. Digite a confirmação de senha idêntica.', 'warning');
+        return;
+      }
+      if (password.length < 6) {
+        addToast('⚠️ A senha precisa ter pelo menos 6 caracteres.', 'warning');
+        return;
+      }
+    }
+
     setLoading(true);
 
     try {
@@ -34,11 +52,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
           onClose();
         }
       } else {
-        if (!fullName) {
-          addToast('Informe seu nome completo para o cadastro.', 'warning');
-          setLoading(false);
-          return;
-        }
         const success = await signUpWithEmail(email, password, fullName);
         if (success) {
           onClose();
@@ -49,6 +62,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSwitchMode = (newMode: 'login' | 'signup') => {
+    setMode(newMode);
+    setConfirmPassword('');
+    setShowPassword(false);
+    setShowConfirmPassword(false);
   };
 
   return (
@@ -85,7 +105,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         <div className="grid grid-cols-2 gap-1 p-1 bg-slate-950 rounded-2xl border border-slate-800/80 mb-6">
           <button
             type="button"
-            onClick={() => setMode('login')}
+            onClick={() => handleSwitchMode('login')}
             className={`py-2 rounded-xl text-xs font-bold transition-all ${
               mode === 'login' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'
             }`}
@@ -94,7 +114,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
           </button>
           <button
             type="button"
-            onClick={() => setMode('signup')}
+            onClick={() => handleSwitchMode('signup')}
             className={`py-2 rounded-xl text-xs font-bold transition-all ${
               mode === 'signup' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'
             }`}
@@ -142,16 +162,60 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
             <div className="relative">
               <Lock className="absolute left-3.5 top-3 w-4 h-4 text-slate-500" />
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 required
                 minLength={6}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none transition-all"
+                className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none transition-all"
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-2.5 p-0.5 text-slate-500 hover:text-slate-300 transition-colors"
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
             </div>
           </div>
+
+          {mode === 'signup' && (
+            <div>
+              <label className="block text-xs font-medium text-slate-300 mb-1">Confirmar Senha</label>
+              <div className="relative">
+                <Lock className="absolute left-3.5 top-3 w-4 h-4 text-slate-500" />
+                <input
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  required
+                  minLength={6}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className={`w-full pl-10 pr-10 py-2.5 rounded-xl bg-slate-950 border text-xs text-white placeholder-slate-500 focus:outline-none transition-all ${
+                    confirmPassword && confirmPassword !== password
+                      ? 'border-rose-500 focus:border-rose-400'
+                      : confirmPassword && confirmPassword === password
+                      ? 'border-emerald-500 focus:border-emerald-400'
+                      : 'border-slate-800 focus:border-indigo-500'
+                  }`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-2.5 p-0.5 text-slate-500 hover:text-slate-300 transition-colors"
+                >
+                  {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              {confirmPassword && confirmPassword !== password && (
+                <p className="text-[10px] text-rose-400 mt-1 font-medium">As senhas não coincidem</p>
+              )}
+              {confirmPassword && confirmPassword === password && (
+                <p className="text-[10px] text-emerald-400 mt-1 font-medium">✓ Senhas coincidem</p>
+              )}
+            </div>
+          )}
 
           <button
             type="submit"
@@ -175,3 +239,4 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     </div>
   );
 };
+

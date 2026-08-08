@@ -287,7 +287,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     if (data.user) {
-      // Salvar perfil no banco
+      // Salvar perfil no banco de dados
       await SupabaseService.saveProfile({
         id: data.user.id,
         email,
@@ -295,18 +295,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         planTier: 'pro',
       });
 
-      // Se a sessão já foi criada (confirmação de e-mail desabilitada no Supabase)
-      if (data.session) {
+      // Tentar login automático imediato se data.session existe ou via signInWithPassword
+      let currentSession = data.session;
+      if (!currentSession) {
+        const loginRes = await supabase.auth.signInWithPassword({ email, password });
+        if (loginRes.data?.session) {
+          currentSession = loginRes.data.session;
+        }
+      }
+
+      if (currentSession) {
         addToast(`🎉 Bem-vindo ao AFILIADO.AI, ${fullName}! Conta criada com sucesso!`, 'success');
         confetti({ particleCount: 100, spread: 80 });
         return true;
       } else {
-        // Confirmação de e-mail habilitada — avisar o usuário
+        // Confirmação de e-mail pendente no Supabase
         addToast(
-          `📧 Conta criada! Acesse seu e-mail (${email}) e clique no link de confirmação para ativar sua conta.`,
+          `📧 Conta criada com sucesso! Verifique seu e-mail (${email}) para ativar a conta ou tente fazer login.`,
           'info'
         );
-        return false; // Não fechar o modal — usuário precisa confirmar e-mail
+        return true; // Fechar modal e permitir login
       }
     }
     return false;
